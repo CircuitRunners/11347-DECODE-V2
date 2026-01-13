@@ -23,8 +23,8 @@ public class kicker extends SubsystemBase {
 //            return position;
 //        }
 //    }
-    private final int up = 0;
-    private final int down = 0;
+    private final double up = 0.23; //1:0.22 //2:0.23 /3:0.23
+    private final double down = 0.55;
 
 
 
