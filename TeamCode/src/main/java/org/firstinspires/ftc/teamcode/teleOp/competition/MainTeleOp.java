@@ -22,6 +22,8 @@ import org.firstinspires.ftc.teamcode.subsystems.drive.MecanumDrivebase;
 import org.firstinspires.ftc.teamcode.support.AlliancePresets;
 
 
+
+
 import com.pedropathing.follower.Follower;
 
 import java.util.Locale;
@@ -34,24 +36,41 @@ public class MainTeleOp extends CommandOpMode{
     private GamepadEx driver, manipulator;
     private GoBildaPinpointDriver pinpoint;
     private MecanumDrivebase drive;
-
+    private kicker kicker;
     private double turretPosition;
-
+    private int servoNumber = 0;
     @Override
     public void initialize() {
         driver = new GamepadEx(gamepad1);
         manipulator = new GamepadEx(gamepad2);
 
-        //turret = new Turret(hardwareMap);
-        pinpoint = hardwareMap.get(GoBildaPinpointDriver.class, "pinpoint");
-        configurePinpoint();
 
-        drive = new MecanumDrivebase(hardwareMap);
+
+        turret = new Turret(hardwareMap);
+        //pinpoint = hardwareMap.get(GoBildaPinpointDriver.class, "pinpoint");
+        //configurePinpoint();
+
+        kicker = new kicker(hardwareMap);
+
+        kicker.kickerDownPosition();
+
+        //drive = new MecanumDrivebase(hardwareMap);
 
         driver.getGamepadButton(GamepadKeys.Button.DPAD_LEFT)
                 .whenPressed(new InstantCommand(()-> turretPosition = turretPosition+10));
         driver.getGamepadButton(GamepadKeys.Button.DPAD_RIGHT)
                 .whenPressed(new InstantCommand(()-> turretPosition = turretPosition-10));
+
+        //transfer commands
+        driver.getGamepadButton(GamepadKeys.Button.DPAD_LEFT)
+                .whenPressed(new InstantCommand(()-> {
+                    servoNumber = (servoNumber+1) % 3;
+                    kicker.kickerTransferUP(servoNumber);
+                }))
+                .whenReleased(new InstantCommand(()-> {
+
+                    kicker.kickerDownPosition();
+                }));
 
 
 
@@ -62,7 +81,7 @@ public class MainTeleOp extends CommandOpMode{
     public void run() {
         super.run();
 
-        //turret.setTurretPosition(turretPosition);
+        turret.setTurretPosition(turretPosition);
 
 
         double forward = driver.getLeftY(); // Forwards/backwards
