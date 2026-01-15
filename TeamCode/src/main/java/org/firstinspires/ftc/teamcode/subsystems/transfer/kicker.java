@@ -25,7 +25,7 @@ public class kicker extends SubsystemBase {
 //        }
 //    }
     private final double up = 0.23; //1:0.22 //2:0.23 /3:0.23
-    private final double down = 0.52; //0.55 old value
+    private final double down = 0.5; //0.55 old value
 
 
 

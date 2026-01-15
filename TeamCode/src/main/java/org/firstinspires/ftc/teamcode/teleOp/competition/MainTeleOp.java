@@ -47,8 +47,8 @@ public class MainTeleOp extends CommandOpMode{
 
 
         turret = new Turret(hardwareMap);
-        //pinpoint = hardwareMap.get(GoBildaPinpointDriver.class, "pinpoint");
-        //configurePinpoint();
+        pinpoint = hardwareMap.get(GoBildaPinpointDriver.class, "pinpoint");
+        configurePinpoint();
 
         kicker = new kicker(hardwareMap);
 
@@ -90,9 +90,19 @@ public class MainTeleOp extends CommandOpMode{
 
         // --- Telemetry ---
 
+        Pose2D pose;
+        pose = driveFieldRelative(forward, right, rotate);
+        String data = String.format(Locale.US,
+                "{X: %.3f, Y: %.3f, H: %.3f}",
+                pose.getX(DistanceUnit.INCH),
+                pose.getY(DistanceUnit.INCH),
+                pose.getHeading(AngleUnit.DEGREES)
+        );
 
         telemetry.addLine("----  Subsystems Data  ----");
         telemetry.addData("Aiming Turret Pos: ", turret.getTurretPosition());
+        telemetry.addLine("----  Pinpoint Data  ----");
+        telemetry.addData("Position", data);
         telemetry.update();
     }
     private Pose2D driveFieldRelative(double forward, double right, double rotate) {
