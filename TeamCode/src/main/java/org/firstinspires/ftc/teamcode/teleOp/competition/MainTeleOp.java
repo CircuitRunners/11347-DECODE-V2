@@ -3,12 +3,9 @@ package org.firstinspires.ftc.teamcode.teleOp.competition;
 import com.acmerobotics.dashboard.config.Config;
 import com.arcrobotics.ftclib.command.CommandOpMode;
 import com.arcrobotics.ftclib.command.InstantCommand;
-import com.arcrobotics.ftclib.command.button.Trigger;
 import com.arcrobotics.ftclib.gamepad.GamepadEx;
 import com.arcrobotics.ftclib.gamepad.GamepadKeys;
-import com.pedropathing.geometry.Pose;
 import com.qualcomm.hardware.gobilda.GoBildaPinpointDriver;
-import com.qualcomm.hardware.limelightvision.LLResult;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
@@ -16,15 +13,9 @@ import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.Pose2D;
 
 import org.firstinspires.ftc.teamcode.subsystems.shooter.Turret;
-import org.firstinspires.ftc.teamcode.subsystems.transfer.kicker;
+import org.firstinspires.ftc.teamcode.subsystems.transfer.Kickers;
 import org.firstinspires.ftc.teamcode.subsystems.drive.MecanumDrivebase;
 
-import org.firstinspires.ftc.teamcode.support.AlliancePresets;
-
-
-
-
-import com.pedropathing.follower.Follower;
 
 import java.util.Locale;
 
@@ -36,7 +27,7 @@ public class MainTeleOp extends CommandOpMode{
     private GamepadEx driver, manipulator;
     private GoBildaPinpointDriver pinpoint;
     private MecanumDrivebase drive;
-    private kicker kicker;
+    private Kickers Kickers;
     private double turretPosition;
     private int servoNumber = 0;
     @Override
@@ -50,9 +41,9 @@ public class MainTeleOp extends CommandOpMode{
         pinpoint = hardwareMap.get(GoBildaPinpointDriver.class, "pinpoint");
         configurePinpoint();
 
-        kicker = new kicker(hardwareMap);
+        Kickers = new Kickers(hardwareMap);
 
-        kicker.kickerDownPosition();
+        Kickers.kickerDownPosition();
 
         //drive = new MecanumDrivebase(hardwareMap);
 
@@ -65,11 +56,11 @@ public class MainTeleOp extends CommandOpMode{
         driver.getGamepadButton(GamepadKeys.Button.DPAD_LEFT)
                 .whenPressed(new InstantCommand(()-> {
                     servoNumber = (servoNumber+1) % 3;
-                    kicker.kickerTransferUP(servoNumber);
+                    Kickers.kickerTransferUP(servoNumber);
                 }))
                 .whenReleased(new InstantCommand(()-> {
 
-                    kicker.kickerDownPosition();
+                    Kickers.kickerDownPosition();
                 }));
 
 
