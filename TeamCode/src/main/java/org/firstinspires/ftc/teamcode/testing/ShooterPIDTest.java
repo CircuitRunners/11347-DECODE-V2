@@ -6,6 +6,7 @@ import com.acmerobotics.dashboard.telemetry.MultipleTelemetry;
 import com.acmerobotics.dashboard.telemetry.TelemetryPacket;
 import com.arcrobotics.ftclib.command.CommandOpMode;
 import com.arcrobotics.ftclib.gamepad.GamepadEx;
+import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
@@ -27,15 +28,15 @@ public class ShooterPIDTest extends CommandOpMode {
     // Dashboard-tunable constants
     public static double TARGET_RPM = 3500.0; // 4000
     public static double MOTOR_RPM = 6000.0; // 1410
-    public static double GEAR_RATIO = 1;
+    public static double GEAR_RATIO = 1.0;
     public static double TICKS_PER_REV = 28;
 
 
     // PIDF (velocity)
-    public static double kP = 0;
-    public static double kI = 0.0;
-    public static double kD = 0;
-    public static double kF = 0;
+    public static double kP = 0; //150
+    public static double kI = 0.0; //0.5
+    public static double kD = 0; //0
+    public static double kF = 0; //17
 
     public double kfValue;
 
@@ -50,22 +51,21 @@ public class ShooterPIDTest extends CommandOpMode {
 
         shooter1 = hardwareMap.get(DcMotorEx.class, "m1");
 
-
+        shooter1.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
         shooter1.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-        shooter1.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+        shooter1.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
 
         shooter1.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
 
 
         shooter2 = hardwareMap.get(DcMotorEx.class, "m2");
 
-
+        shooter2.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
         shooter2.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
         shooter2.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
         shooter2.setDirection(DcMotor.Direction.REVERSE);
 
         shooter2.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
-
 
         applyPIDF();
 
@@ -110,8 +110,9 @@ public class ShooterPIDTest extends CommandOpMode {
         }
 
         // Gets current velo of motor
-        double currTicksPerSec = shooter2.getVelocity();; // ticks of motor
-        double currMotorRPM = ((currTicksPerSec) * 60) / TICKS_PER_REV;
+        double currTicksPerSec = shooter1.getVelocity(); // ticks/s of motor
+        double currTicksPerSec2 = shooter2.getVelocity();
+        double currMotorRPM = (((currTicksPerSec + currTicksPerSec2) / 2) * 60) / TICKS_PER_REV;
         double currShooterRPM = currMotorRPM * GEAR_RATIO;
 
         // Tuning Stuff

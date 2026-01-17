@@ -3,6 +3,7 @@ package org.firstinspires.ftc.teamcode.teleOp.competition;
 import com.acmerobotics.dashboard.config.Config;
 import com.arcrobotics.ftclib.command.CommandOpMode;
 import com.arcrobotics.ftclib.command.InstantCommand;
+import com.arcrobotics.ftclib.command.button.Trigger;
 import com.arcrobotics.ftclib.gamepad.GamepadEx;
 import com.arcrobotics.ftclib.gamepad.GamepadKeys;
 import com.qualcomm.hardware.gobilda.GoBildaPinpointDriver;
@@ -15,6 +16,7 @@ import org.firstinspires.ftc.robotcore.external.navigation.Pose2D;
 import org.firstinspires.ftc.teamcode.subsystems.shooter.Turret;
 import org.firstinspires.ftc.teamcode.subsystems.transfer.Kickers;
 import org.firstinspires.ftc.teamcode.subsystems.drive.MecanumDrivebase;
+import org.firstinspires.ftc.teamcode.subsystems.shooter.StaticShooter;
 
 
 import java.util.Locale;
@@ -22,7 +24,7 @@ import java.util.Locale;
 @Config
 @TeleOp(group="1")
 public class MainTeleOp extends CommandOpMode{
-
+    private StaticShooter shooter;
     private Turret turret;
     private GamepadEx driver, manipulator;
     private GoBildaPinpointDriver pinpoint;
@@ -35,36 +37,51 @@ public class MainTeleOp extends CommandOpMode{
         driver = new GamepadEx(gamepad1);
         manipulator = new GamepadEx(gamepad2);
 
-
+        shooter = new StaticShooter(hardwareMap, telemetry);
+        shooter.setTargetRPM(0);
 
         turret = new Turret(hardwareMap);
         pinpoint = hardwareMap.get(GoBildaPinpointDriver.class, "pinpoint");
         configurePinpoint();
 
-        Kickers = new Kickers(hardwareMap);
+        //Kickers = new Kickers(hardwareMap);
 
-        Kickers.kickerDownPosition();
-
-        //drive = new MecanumDrivebase(hardwareMap);
+        drive = new MecanumDrivebase(hardwareMap);
 
         driver.getGamepadButton(GamepadKeys.Button.DPAD_LEFT)
-                .whenPressed(new InstantCommand(()-> turretPosition = turretPosition+10));
+                .whenPressed(new InstantCommand(()-> turretPosition = turretPosition+0.01));
         driver.getGamepadButton(GamepadKeys.Button.DPAD_RIGHT)
-                .whenPressed(new InstantCommand(()-> turretPosition = turretPosition-10));
+                .whenPressed(new InstantCommand(()-> turretPosition = turretPosition-0.01));
 
         //transfer commands
         driver.getGamepadButton(GamepadKeys.Button.DPAD_LEFT)
                 .whenPressed(new InstantCommand(()-> {
                     servoNumber = (servoNumber+1) % 3;
-                    Kickers.kickerTransferUP(servoNumber);
+
                 }))
                 .whenReleased(new InstantCommand(()-> {
 
-                    Kickers.kickerDownPosition();
+
                 }));
 
 
+        //shooter stuff
+        driver.getGamepadButton(GamepadKeys.Button.RIGHT_BUMPER)
+                .whenPressed(new InstantCommand(()-> {
+                    shooter.setTargetRPM(3500);
+//                    out.aimScoring();
+                }));
 
+        // Click bumper once to activate intake at close speed
+        driver.getGamepadButton(GamepadKeys.Button.LEFT_BUMPER)
+                .whenPressed(new InstantCommand(()-> {
+                    shooter.setTargetRPM(2500);
+//                    out.aimClose();
+                }));
+        
+        Trigger shooterOff = driver.getGamepadButton(GamepadKeys.Button.LEFT_BUMPER)
+                .and(driver.getGamepadButton(GamepadKeys.Button.RIGHT_BUMPER));
+        shooterOff.whenActive(new InstantCommand(() -> shooter.setTargetRPM(0)));
     }
 
 
@@ -121,7 +138,7 @@ public class MainTeleOp extends CommandOpMode{
         pinpoint.setEncoderResolution(GoBildaPinpointDriver.GoBildaOdometryPods.goBILDA_4_BAR_POD);
         pinpoint.setEncoderDirections(
                 GoBildaPinpointDriver.EncoderDirection.FORWARD,
-                GoBildaPinpointDriver.EncoderDirection.FORWARD
+                GoBildaPinpointDriver.EncoderDirection.REVERSED
         );
     }
 }
