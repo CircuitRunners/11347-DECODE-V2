@@ -6,6 +6,7 @@ import com.acmerobotics.dashboard.telemetry.MultipleTelemetry;
 import com.arcrobotics.ftclib.command.SubsystemBase;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
+import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 
 import org.firstinspires.ftc.robotcore.external.Telemetry;
@@ -78,15 +79,13 @@ public class StaticShooter extends SubsystemBase {
         shooter1.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
         shooter1.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
 
-
         shooter2 = hardwareMap.get(DcMotorEx.class, "shooter2");
 
         shooter2.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
         shooter2.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
         shooter2.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        shooter2.setDirection(DcMotorSimple.Direction.REVERSE);
         shooter2.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
-
-
 
         // Configs defaults
         setTargetRPM(defaultTargetRPM);

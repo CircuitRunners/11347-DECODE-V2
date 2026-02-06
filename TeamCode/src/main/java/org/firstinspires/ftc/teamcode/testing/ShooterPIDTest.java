@@ -49,7 +49,7 @@ public class ShooterPIDTest extends CommandOpMode {
         dash = FtcDashboard.getInstance();
         telemetry = new MultipleTelemetry(telemetry, dash.getTelemetry());
 
-        shooter1 = hardwareMap.get(DcMotorEx.class, "m1");
+        shooter1 = hardwareMap.get(DcMotorEx.class, "shooter1");
 
         shooter1.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
         shooter1.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
@@ -58,7 +58,7 @@ public class ShooterPIDTest extends CommandOpMode {
         shooter1.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
 
 
-        shooter2 = hardwareMap.get(DcMotorEx.class, "m2");
+        shooter2 = hardwareMap.get(DcMotorEx.class, "shooter2");
 
         shooter2.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
         shooter2.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);

@@ -1,5 +1,7 @@
 package org.firstinspires.ftc.teamcode.support;
 
+import com.pedropathing.geometry.Pose;
+
 public class AlliancePresets {
     public enum Alliance {
         BLUE(20),
@@ -16,8 +18,8 @@ public class AlliancePresets {
         }
     }
 
-    public static int allianceShooterTag;
-    public static int currentCypher;
+    public static int allianceShooterTag, currentCypher;
+    public static Pose globalPose;
 
     public static int getAllianceShooterTag() {
         return allianceShooterTag;
@@ -33,5 +35,13 @@ public class AlliancePresets {
 
     public static void setCurrentCypherId(int cypher) {
         currentCypher = cypher;
+    }
+
+    public static void setCurrentPose(Pose currentPose) {
+        globalPose = currentPose;
+    }
+
+    public static Pose getGlobalPose() {
+        return globalPose;
     }
 }

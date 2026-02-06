@@ -7,12 +7,11 @@ import com.qualcomm.robotcore.hardware.Servo;
 
 import org.firstinspires.ftc.teamcode.support.RunAction;
 
-
 @Config
 public class Kickers extends SubsystemBase {
     public enum KickerState {
-        UP(0.22, 0.23, 0.23),
-        DOWN(0.5, 0.5, 0.5);
+        UP(0.21, 0.23, 0.21),
+        DOWN(0.54, 0.52, 0.52);
 
         public final double kickerOne, kickerTwo, kickerThree;
         KickerState(double kickerOne, double kickerTwo, double kickerThree) {
@@ -84,4 +83,8 @@ public class Kickers extends SubsystemBase {
     public void resetZoneThree() {
         kickerServo3.setPosition(KickerState.DOWN.getKickerThreePosition());
     }
+
+    public void setZoneOnePos(double p) { kickerServo1.setPosition(p); }
+    public void setZoneTwoPos(double p) { kickerServo2.setPosition(p); }
+    public void setZoneThreePos(double p) { kickerServo3.setPosition(p); }
 }
