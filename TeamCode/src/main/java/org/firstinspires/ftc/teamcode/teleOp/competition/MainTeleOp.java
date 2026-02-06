@@ -236,6 +236,9 @@ public class MainTeleOp extends CommandOpMode {
         double gx = goalX_odom();
         double gy = goalY_odom();
 
+//        double gx = TURRET_TARGET_POSE.getX();
+//        double gy = TURRET_TARGET_POSE.getY();
+
         turret.setTargetFieldPointInches(gx, gy);
         ServoTurretTracker.TURRET_TRIM_DEG = TURRET_TRIM_DEG;
         turret.setEnabled(TURRET_AUTO_AIM);
@@ -271,7 +274,8 @@ public class MainTeleOp extends CommandOpMode {
         double Hx = poseForHood.getX(DistanceUnit.INCH);
         double Hy = poseForHood.getY(DistanceUnit.INCH);
 
-        outtake.updateAutoHoodFromField(Hx, Hy, TURRET_TARGET_POSE.getX(), TURRET_TARGET_POSE.getY());
+//        outtake.updateAutoHoodFromField(Hx, Hy, TURRET_TARGET_POSE.getX(), TURRET_TARGET_POSE.getY());
+        outtake.updateAutoHoodFromField(Hx, Hy, gx, gy);
         outtake.update();
 
         // ===================== Telemetry =====================
