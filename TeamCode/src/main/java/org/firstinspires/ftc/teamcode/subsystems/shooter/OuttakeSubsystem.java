@@ -31,7 +31,7 @@ public class OuttakeSubsystem extends SubsystemBase {
     public static double D1 = 48,  P1 = 0.28;
     public static double D2 = 72,  P2 = 0.36;
     public static double D3 = 96,  P3 = 0.46;
-    public static double D4 = 120, P4 = 0.58;
+    public static double D4 = 120, P4 = 0.8;
 
     public OuttakeSubsystem(HardwareMap hardwareMap) {
         hood = hardwareMap.get(Servo.class, "hood");

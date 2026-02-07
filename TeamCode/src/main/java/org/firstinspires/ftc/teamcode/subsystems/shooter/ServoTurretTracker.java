@@ -1,5 +1,6 @@
 package org.firstinspires.ftc.teamcode.subsystems.shooter;
 
+import com.acmerobotics.dashboard.config.Config;
 import com.arcrobotics.ftclib.command.SubsystemBase;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 import com.qualcomm.robotcore.hardware.Servo;
@@ -8,6 +9,7 @@ import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.Pose2D;
 
+@Config
 public class ServoTurretTracker extends SubsystemBase {
 
     private final Servo turret;
@@ -16,7 +18,7 @@ public class ServoTurretTracker extends SubsystemBase {
     private double targetX = 0.0;
     private double targetY = 0.0;
 
-    // Servo limits
+    // ===================== Servo limits =====================
     public static double SERVO_MIN = 0.2;
     public static double SERVO_MAX = 0.8;
 
@@ -27,14 +29,24 @@ public class ServoTurretTracker extends SubsystemBase {
     public static double TURRET_WINDOW_MIN_DEG = 0.0;
     public static double TURRET_WINDOW_MAX_DEG = 190.0;
 
-    // Calibration (deg -> servo pos)
+    // ===================== ODOMETRY FRAME FIX UPS =====================
+    // Use these to match corrected Pinpoint (swap/invert axes) without rewriting math.
+    public static boolean SWAP_XY = false;
+    public static boolean INVERT_X = false;
+    public static boolean INVERT_Y = false;
+
+    // If your heading reference changed (e.g., you previously “-180” everywhere), fix here once.
+    public static double HEADING_OFFSET_DEG = 0.0;
+
+    // ===================== Calibration (deg -> servo pos) =====================
+    // Your provided calibration (90deg is start/mid)
     public static double A0_DEG = 0.0;   public static double P0 = 0.76;
     public static double A1_DEG = 45.0;  public static double P1 = 0.62;
     public static double A2_DEG = 90.0;  public static double P2 = 0.50;
     public static double A3_DEG = 135.0; public static double P3 = 0.38;
     public static double A4_DEG = 190.0; public static double P4 = 0.20;
 
-    // Telemetry
+    // ===================== Telemetry =====================
     private double lastTargetFieldDeg = 0.0;
     private double lastRobotFieldHeadingDeg = 0.0;
     private double lastTurretRobotDegCmd = 90.0;
@@ -53,29 +65,45 @@ public class ServoTurretTracker extends SubsystemBase {
         targetY = y;
     }
 
+    /** Main update: aim turret at target using current robot field pose. */
     public void update(Pose2D robotPose) {
         if (!enabled) return;
 
+        // --- Read odom pose (inches) ---
         double rx = robotPose.getX(DistanceUnit.INCH);
         double ry = robotPose.getY(DistanceUnit.INCH);
-        double robotFieldHeadingDeg = wrap0to360(Math.toDegrees(robotPose.getHeading(AngleUnit.RADIANS)));
 
-        // Field bearing from robot -> target
+        // --- Apply axis fixes (dashboard) ---
+        if (SWAP_XY) {
+            double tmp = rx; rx = ry; ry = tmp;
+        }
+        if (INVERT_X) rx = -rx;
+        if (INVERT_Y) ry = -ry;
+
+        // --- Heading (degrees), normalized 0..360 ---
+        double robotFieldHeadingDeg =
+                wrap0to360(Math.toDegrees(robotPose.getHeading(AngleUnit.RADIANS)) + HEADING_OFFSET_DEG);
+
+        // --- Field bearing robot -> target (0..360) ---
         double targetFieldDeg = wrap0to360(Math.toDegrees(Math.atan2(targetY - ry, targetX - rx)));
 
-        double turretRobotDeg = targetFieldDeg - robotFieldHeadingDeg - TURRET_TRIM_DEG;
-        turretRobotDeg = chooseClosestToWindow(turretRobotDeg, TURRET_WINDOW_MIN_DEG, TURRET_WINDOW_MAX_DEG);
+        // --- Robot-relative turret angle we want ---
+        // Wrap to (-180..180) first so "closest" selection behaves well.
+        double turretRobotDeg = wrapTo180(targetFieldDeg - robotFieldHeadingDeg - TURRET_TRIM_DEG);
 
-        // Clamp to window
+        // Your turret window is 0..190, but turretRobotDeg might be negative.
+        // Choose representation (deg, deg+360, deg-360) closest to the window, then clamp.
+        turretRobotDeg = chooseClosestToWindow(turretRobotDeg, TURRET_WINDOW_MIN_DEG, TURRET_WINDOW_MAX_DEG);
         double chosenTurretRobotDeg = clamp(turretRobotDeg, TURRET_WINDOW_MIN_DEG, TURRET_WINDOW_MAX_DEG);
 
-        // Convert angle -> servo
+        // --- Convert angle -> servo pos ---
         double pos = angleDegToServoPos(chosenTurretRobotDeg);
         pos = clamp(pos, SERVO_MIN, SERVO_MAX);
         setPosition(pos);
 
-        lastTargetFieldDeg = wrap0to360(targetFieldDeg);
-        lastRobotFieldHeadingDeg = wrap0to360(robotFieldHeadingDeg);
+        // Telemetry latches
+        lastTargetFieldDeg = targetFieldDeg;
+        lastRobotFieldHeadingDeg = robotFieldHeadingDeg;
         lastTurretRobotDegCmd = chosenTurretRobotDeg;
         lastServoPosCmd = pos;
     }
@@ -98,7 +126,7 @@ public class ServoTurretTracker extends SubsystemBase {
     private static double costToWindow(double x, double lo, double hi) {
         if (x < lo) return lo - x;
         if (x > hi) return x - hi;
-        return 0.0; // inside window is best
+        return 0.0;
     }
 
     /** Piecewise linear angle->pos using 5 points. */
@@ -130,6 +158,12 @@ public class ServoTurretTracker extends SubsystemBase {
         deg %= 360.0;
         if (deg < 0) deg += 360.0;
         return deg;
+    }
+
+    private static double wrapTo180(double deg) {
+        deg = (deg + 180.0) % 360.0;
+        if (deg < 0) deg += 360.0;
+        return deg - 180.0;
     }
 
     private static double clamp(double v, double lo, double hi) {

@@ -122,13 +122,13 @@ public class MainTeleOp extends CommandOpMode {
     private int stepIdx = 0;
     private boolean lastStart = false;
     //new stuff
-    private Pose GOAL_POS_RED = new Pose(138,138);
-    private double SCORE_HEIGHT = 25;
+    private Pose GOAL_POS_RED = new Pose(138,136); //138, 138
+    public static double SCORE_HEIGHT = 25;
     private double SCORE_ANGLE = Math.toRadians(-30);
     private double PASS_THROUGH_POINT_RADIUS =5;
     public static  double HOOD_MAX_ANGLE = Math.toRadians(67);
     public static double HOOD_MIN_ANGLE = Math.toRadians(0);
-    public static double wheelDiameter = 3.21;
+    public static double wheelDiameter = 4.9;
     public static double maxHoodTicks = 0.8;
     private double hoodAngle = 0;
     private double flywheelSpeed = 0;
@@ -240,7 +240,7 @@ public class MainTeleOp extends CommandOpMode {
                 DistanceUnit.INCH,
                 72, 72,
                 AngleUnit.RADIANS,
-                Math.toRadians(180.0)
+                Math.toRadians(0.0)
         ));
 
         telemetry.addLine("Init Done");
@@ -254,13 +254,25 @@ public class MainTeleOp extends CommandOpMode {
         shooter.update();
         limelight.update();
         pinpoint.update();
-        follower.update();
 
         shooter.setTargetRPM(SHOOTER_ENABLED ? SHOOTER_TARGET_RPM : 0.0);
 
         Pose2D currentPose = pinpoint.getPosition();
         double x = currentPose.getX(DistanceUnit.INCH);
         double y = currentPose.getY(DistanceUnit.INCH);
+
+        calculateHoodPos(x, y);
+
+        double gearRatio = 1.0;
+
+        double wheelRPM = (flywheelSpeed * 60.0) / (Math.PI * (wheelDiameter/4.0));
+        double motorRPM = wheelRPM * gearRatio;
+
+        double hoodPos = (maxHoodTicks - Range.scale(hoodAngle, HOOD_MIN_ANGLE, HOOD_MAX_ANGLE, 0.0, 0.45));
+
+        if (usePhysics) {
+            shooter.setTargetRPM(motorRPM);
+        }
 
         // ===================== Drive =====================
         double forward = driver.getLeftY();
@@ -270,27 +282,13 @@ public class MainTeleOp extends CommandOpMode {
         Pose2D drivePose;
         drivePose = driveFieldRelative(forward, right, rotate);
 
-        calculateHoodPos(x, y);
-
-        //new stuff
-        double gearRatio = 1.0;
-
-        double wheelRPM = MathFunctions.clamp((flywheelSpeed * 60.0) / (Math.PI * (wheelDiameter/4.0)), 0, 4000);
-        double motorRPM = wheelRPM * gearRatio;
-
-        double hoodPos = (maxHoodTicks - Range.scale(hoodAngle, HOOD_MIN_ANGLE, HOOD_MAX_ANGLE, 0.0, maxHoodTicks));
-
-        if (usePhysics) {
-            shooter.setTargetRPM(motorRPM);
-            outtake.aimScoring(hoodPos);
-        }
 
         // ===================== Turret Auto Aim =====================
-        double gx = goalX_odom();
-        double gy = goalY_odom();
+//        double gx = goalX_odom();
+//        double gy = goalY_odom();
 
-//        double gx = TURRET_TARGET_POSE.getX();
-//        double gy = TURRET_TARGET_POSE.getY();
+        double gx = TURRET_TARGET_POSE.getX();
+        double gy = TURRET_TARGET_POSE.getY();
 
         turret.setTargetFieldPointInches(gx, gy);
         ServoTurretTracker.TURRET_TRIM_DEG = TURRET_TRIM_DEG;
@@ -373,9 +371,9 @@ public class MainTeleOp extends CommandOpMode {
         telemetry.addData("Goal Pedro", "x=%.1f y=%.1f", TURRET_TARGET_POSE.getX(), TURRET_TARGET_POSE.getY());
         telemetry.addData("Goal Odom",  "x=%.1f y=%.1f", goalX_odom(), goalY_odom());
         telemetry.addData("Robot Odom", "x=%.1f y=%.1f", currentPose.getX(DistanceUnit.INCH), currentPose.getY(DistanceUnit.INCH));
+        telemetry.addData("Follower Position:", followerData);
         telemetry.addData("Hood pos", hoodPos);
         telemetry.addData("Shooter Predicted Vel",motorRPM);
-        telemetry.addData("Follower Position:", followerData);
         telemetry.addLine();
 
         telemetry.update();
@@ -389,7 +387,7 @@ public class MainTeleOp extends CommandOpMode {
     private Pose2D driveFieldRelative(double forward, double right, double rotate) {
         Pose2D pos = pinpoint.getPosition();  // Current position
 
-        double robotAngle = Math.toRadians(pos.getHeading(AngleUnit.DEGREES) - 180);
+        double robotAngle = Math.toRadians(pos.getHeading(AngleUnit.DEGREES));
         double theta = Math.atan2(forward, right);
         double r = Math.hypot(forward, right);
         theta = AngleUnit
@@ -570,10 +568,12 @@ public class MainTeleOp extends CommandOpMode {
         double g = 32.174 * 12;
         double x = robotToGoalVector.getMagnitude() - PASS_THROUGH_POINT_RADIUS;
         double y = SCORE_HEIGHT;
+
         double a = SCORE_ANGLE;
 
         //calculuate initial launch components
         hoodAngle = MathFunctions.clamp(Math.atan(2 * y / x - Math.tan(a)), HOOD_MIN_ANGLE, HOOD_MAX_ANGLE);
 
         flywheelSpeed = Math.sqrt(g * x * x / (2 * Math.pow(Math.cos(hoodAngle), 2) * (x * Math.tan(hoodAngle) - y)));
-}}
+    }
+}
