@@ -213,7 +213,7 @@ public class MainTeleOp extends CommandOpMode {
                                     pose.getX(DistanceUnit.INCH),
                                     pose.getY(DistanceUnit.INCH),
                                     AngleUnit.RADIANS,
-                                    Math.toRadians(180.0)
+                                    Math.toRadians(0.0)
                             ));
                 }));
 
