@@ -142,7 +142,7 @@ public class MainTeleOp extends CommandOpMode {
         dash = FtcDashboard.getInstance();
         dash.setTelemetryTransmissionInterval(25);
         telemetry = new MultipleTelemetry(telemetry, dash.getTelemetry());
-        follower.update();
+
 
         driver = new GamepadEx(gamepad1);
         manipulator = new GamepadEx(gamepad2);
@@ -254,6 +254,7 @@ public class MainTeleOp extends CommandOpMode {
         shooter.update();
         limelight.update();
         pinpoint.update();
+        follower.update();
 
         shooter.setTargetRPM(SHOOTER_ENABLED ? SHOOTER_TARGET_RPM : 0.0);
 
