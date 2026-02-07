@@ -8,11 +8,15 @@ import com.arcrobotics.ftclib.command.CommandOpMode;
 import com.arcrobotics.ftclib.command.InstantCommand;
 import com.arcrobotics.ftclib.gamepad.GamepadEx;
 import com.arcrobotics.ftclib.gamepad.GamepadKeys;
+import com.pedropathing.follower.Follower;
 import com.pedropathing.geometry.Pose;
+import com.pedropathing.math.MathFunctions;
+import com.pedropathing.math.Vector;
 import com.qualcomm.hardware.gobilda.GoBildaPinpointDriver;
 import com.qualcomm.hardware.limelightvision.LLResult;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.util.ElapsedTime;
+import com.qualcomm.robotcore.util.Range;
 
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
@@ -21,6 +25,7 @@ import org.firstinspires.ftc.robotcore.external.navigation.Pose3D;
 import org.firstinspires.ftc.teamcode.auto.BulkCacheCommand;
 import org.firstinspires.ftc.teamcode.commands.IntakeCommand;
 import org.firstinspires.ftc.teamcode.commands.ShotOrderPlanner;
+import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
 import org.firstinspires.ftc.teamcode.subsystems.drive.MecanumDrivebase;
 import org.firstinspires.ftc.teamcode.subsystems.intake.IntakeSubsystem;
 import org.firstinspires.ftc.teamcode.subsystems.shooter.OuttakeSubsystem;
@@ -63,7 +68,7 @@ public class MainTeleOp extends CommandOpMode {
     public static boolean ABORT_SEQUENCE = false;
     public static boolean FORCE_SHOOT_ALL_ZONES = true;
 
-    public static double SHOOTER_TARGET_RPM = 4000.0;
+    public static double SHOOTER_TARGET_RPM = 3800.0;
     public static boolean SHOOTER_ENABLED = true;
     public static double SHOOTER_READY_TOL_RPM = 200.0;
     public static double SHOOTER_READY_TIMEOUT_S = 2.0;
@@ -85,7 +90,6 @@ public class MainTeleOp extends CommandOpMode {
     // ===================== Software =====================
     private ShotOrderPlanner planner;
     private ColourZoneDetection czd;
-    private enum mode { AUTO, MANUAL_CLOSE, MANUAL_FAR }
     private GamepadEx driver, manipulator;
 
      // ===================== VISION =====================
@@ -117,6 +121,19 @@ public class MainTeleOp extends CommandOpMode {
     private List<ShotOrderPlanner.PlannedShot> plan = Collections.emptyList();
     private int stepIdx = 0;
     private boolean lastStart = false;
+    //new stuff
+    private Pose GOAL_POS_RED = new Pose(138,138);
+    private double SCORE_HEIGHT = 25;
+    private double SCORE_ANGLE = Math.toRadians(-30);
+    private double PASS_THROUGH_POINT_RADIUS =5;
+    public static  double HOOD_MAX_ANGLE = Math.toRadians(67);
+    public static double HOOD_MIN_ANGLE = Math.toRadians(0);
+    public static double wheelDiameter = 3.21;
+    public static double maxHoodTicks = 0.8;
+    private double hoodAngle = 0;
+    private double flywheelSpeed = 0;
+    private boolean usePhysics = true;
+    private Follower follower;
 
     @Override
     public void initialize() {
@@ -125,6 +142,7 @@ public class MainTeleOp extends CommandOpMode {
         dash = FtcDashboard.getInstance();
         dash.setTelemetryTransmissionInterval(25);
         telemetry = new MultipleTelemetry(telemetry, dash.getTelemetry());
+        follower.update();
 
         driver = new GamepadEx(gamepad1);
         manipulator = new GamepadEx(gamepad2);
@@ -149,6 +167,8 @@ public class MainTeleOp extends CommandOpMode {
         outtake = new OuttakeSubsystem(hardwareMap);
         kickers = new Kickers(hardwareMap);
 
+        follower = Constants.createFollower(hardwareMap);
+
         czd = new ColourZoneDetection(hardwareMap, "srsHubIndexer", "srsHubPlate");
         planner = new ShotOrderPlanner();
 
@@ -161,6 +181,17 @@ public class MainTeleOp extends CommandOpMode {
         kickers.resetZoneOne();
         kickers.resetZoneTwo();
         kickers.resetZoneThree();
+
+        driver.getGamepadButton(GamepadKeys.Button.DPAD_UP)
+                .whenPressed(new InstantCommand(()-> {
+                    usePhysics = true;
+                }));
+        driver.getGamepadButton(GamepadKeys.Button.DPAD_DOWN)
+                .whenPressed(new InstantCommand(()-> {
+                    usePhysics = true;
+                }));
+
+
 
         // ===================== Commands =====================
         intake.setDefaultCommand(new IntakeCommand(intake, outtake, driver));
@@ -195,6 +226,12 @@ public class MainTeleOp extends CommandOpMode {
                         .whileHeld(new InstantCommand(()->
                                 outtake.aiming(false, true)
                         ));
+        driver.getGamepadButton(GamepadKeys.Button.DPAD_LEFT)
+                .whenPressed(new InstantCommand(()-> {
+
+                    follower.setPose(new Pose(72,72, Math.toRadians(0)));
+
+                }));
 
         driver.getGamepadButton(GamepadKeys.Button.LEFT_BUMPER)
                 .whenPressed(() -> START_SEQUENCE = !START_SEQUENCE);
@@ -231,6 +268,21 @@ public class MainTeleOp extends CommandOpMode {
 
         Pose2D drivePose;
         drivePose = driveFieldRelative(forward, right, rotate);
+
+        calculateHoodPos(x, y);
+
+        //new stuff
+        double gearRatio = 1.0;
+
+        double wheelRPM = MathFunctions.clamp((flywheelSpeed * 60.0) / (Math.PI * (wheelDiameter/4.0)), 0, 4000);
+        double motorRPM = wheelRPM * gearRatio;
+
+        double hoodPos = (maxHoodTicks - Range.scale(hoodAngle, HOOD_MIN_ANGLE, HOOD_MAX_ANGLE, 0.0, maxHoodTicks));
+
+        if (usePhysics) {
+            shooter.setTargetRPM(motorRPM);
+            outtake.aimScoring(hoodPos);
+        }
 
         // ===================== Turret Auto Aim =====================
         double gx = goalX_odom();
@@ -285,6 +337,13 @@ public class MainTeleOp extends CommandOpMode {
                 drivePose.getY(DistanceUnit.INCH),
                 drivePose.getHeading(AngleUnit.DEGREES)
         );
+        String followerData = String.format(Locale.US,
+                "{X: %.3f, Y: %.3f, H: %.3f}",
+                follower.getPose().getX(),
+                follower.getPose().getY(),
+                Math.toDegrees(follower.getPose().getHeading())
+
+        );
 //        telemetry.addLine("----  Limelight Data  ----");
 //        telemetry.addData("LL valid", limelight.hasValidTarget());
 //        telemetry.addData("VisionReject", lastVisionReject);
@@ -313,6 +372,9 @@ public class MainTeleOp extends CommandOpMode {
         telemetry.addData("Goal Pedro", "x=%.1f y=%.1f", TURRET_TARGET_POSE.getX(), TURRET_TARGET_POSE.getY());
         telemetry.addData("Goal Odom",  "x=%.1f y=%.1f", goalX_odom(), goalY_odom());
         telemetry.addData("Robot Odom", "x=%.1f y=%.1f", currentPose.getX(DistanceUnit.INCH), currentPose.getY(DistanceUnit.INCH));
+        telemetry.addData("Hood pos", hoodPos);
+        telemetry.addData("Shooter Predicted Vel",motorRPM);
+        telemetry.addData("Follower Position:", followerData);
         telemetry.addLine();
 
         telemetry.update();
@@ -495,4 +557,22 @@ public class MainTeleOp extends CommandOpMode {
             case Z3: k.kickZoneThree(); break;
         }
     }
-}
+
+    public void calculateHoodPos(double robotX, double robotY) {
+        // Horizontal distance to goal
+        double dx = GOAL_POS_RED.getX() - robotX;
+        double dy = GOAL_POS_RED.getY() - robotY;
+        double distanceToGoal = Math.hypot(dx, dy);
+        double angleToGoal = Math.atan(dy / dx);
+        Vector robotToGoalVector = new Vector(distanceToGoal, angleToGoal);
+
+        double g = 32.174 * 12;
+        double x = robotToGoalVector.getMagnitude() - PASS_THROUGH_POINT_RADIUS;
+        double y = SCORE_HEIGHT;
+        double a = SCORE_ANGLE;
+
+        //calculuate initial launch components
+        hoodAngle = MathFunctions.clamp(Math.atan(2 * y / x - Math.tan(a)), HOOD_MIN_ANGLE, HOOD_MAX_ANGLE);
+
+        flywheelSpeed = Math.sqrt(g * x * x / (2 * Math.pow(Math.cos(hoodAngle), 2) * (x * Math.tan(hoodAngle) - y)));
+}}

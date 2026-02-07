@@ -97,6 +97,9 @@ public class OuttakeSubsystem extends SubsystemBase {
     public double hoodPos() {
         return hood.getPosition();
     }
+    public void aimScoring(double hoodPos) {
+        this.manualHoodPos = hoodPos;
+    }
 
     public double getAutoHoodPos() {
         return autoHoodPos;
