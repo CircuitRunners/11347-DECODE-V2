@@ -2,6 +2,8 @@ package org.firstinspires.ftc.teamcode.support;
 
 import com.pedropathing.geometry.Pose;
 
+import org.firstinspires.ftc.robotcore.external.navigation.Pose2D;
+
 public class AlliancePresets {
     public enum Alliance {
         BLUE(20),
@@ -18,8 +20,24 @@ public class AlliancePresets {
         }
     }
 
+    public enum Cyphers {
+        GPP(21),
+        PGP(22),
+        PPG(23);
+
+        public final int cypherTag;
+
+        Cyphers(int cypherTag) {
+            this.cypherTag = cypherTag;
+        }
+
+        public int getCypherTag() {
+            return cypherTag;
+        }
+    }
+
     public static int allianceShooterTag, currentCypher;
-    public static Pose globalPose;
+    public static Pose2D globalPose;
 
     public static int getAllianceShooterTag() {
         return allianceShooterTag;
@@ -37,11 +55,11 @@ public class AlliancePresets {
         currentCypher = cypher;
     }
 
-    public static void setCurrentPose(Pose currentPose) {
+    public static void setCurrentPose(Pose2D currentPose) {
         globalPose = currentPose;
     }
 
-    public static Pose getGlobalPose() {
+    public static Pose2D getGlobalPose() {
         return globalPose;
     }
 }

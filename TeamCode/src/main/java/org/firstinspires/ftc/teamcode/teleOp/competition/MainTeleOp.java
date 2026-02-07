@@ -48,7 +48,8 @@ public class MainTeleOp extends CommandOpMode {
     public static boolean TURRET_AUTO_AIM = false;
 
     // Target pose (Pedro coords, inches)
-    public static Pose TURRET_TARGET_POSE = new Pose(144, 144);
+    public static Pose TURRET_TARGET_POSE = new Pose(0, 136);
+    boolean isBlue = false;
      public static double FIELD_SIZE_IN = 144.0;
 
      private double goalX_odom() {
@@ -91,6 +92,7 @@ public class MainTeleOp extends CommandOpMode {
     private ShotOrderPlanner planner;
     private ColourZoneDetection czd;
     private GamepadEx driver, manipulator;
+    private int x = 0;
 
      // ===================== VISION =====================
      public static boolean VISION_FUSE_XY = false;
@@ -153,14 +155,14 @@ public class MainTeleOp extends CommandOpMode {
 
         // Subsystems
         shooter = new StaticShooter(hardwareMap, telemetry);
-        shooter.setTargetRPM(000);
+        shooter.setTargetRPM(0);
 
         limelight = new LimelightSubsystem(hardwareMap, "limelight");
-        AlliancePresets.setAllianceShooterTag(AlliancePresets.Alliance.RED.getTagId());
+//        AlliancePresets.setAllianceShooterTag(AlliancePresets.Alliance.BLUE.getTagId());
         limelight.setAllianceTagID(AlliancePresets.getAllianceShooterTag());
 
-        boolean isBlue = (AlliancePresets.getAllianceShooterTag() == AlliancePresets.Alliance.BLUE.getTagId());
-        TURRET_TARGET_POSE = isBlue ? new Pose(0, 144) : new Pose(144, 144);
+        isBlue = (AlliancePresets.getAllianceShooterTag() == AlliancePresets.Alliance.BLUE.getTagId());
+        TURRET_TARGET_POSE = isBlue ? new Pose(-6, 136) : new Pose(138, 136);
 
         drive = new MecanumDrivebase(hardwareMap);
         intake = new IntakeSubsystem(hardwareMap, telemetry);
@@ -228,20 +230,32 @@ public class MainTeleOp extends CommandOpMode {
                         ));
         driver.getGamepadButton(GamepadKeys.Button.DPAD_LEFT)
                 .whenPressed(new InstantCommand(()-> {
-
-                    follower.setPose(new Pose(72,72, Math.toRadians(0)));
-
+                    pinpoint.setPosition(
+                            new Pose2D(
+                                    DistanceUnit.INCH,
+                                    72,
+                                    72,
+                                    AngleUnit.RADIANS,
+                                    Math.toRadians(0.0)
+                            ));
                 }));
-
+        driver.getGamepadButton(GamepadKeys.Button.DPAD_RIGHT)
+                .whenPressed(new InstantCommand(()-> {
+                    x++;
+                }));
         driver.getGamepadButton(GamepadKeys.Button.LEFT_BUMPER)
                 .whenPressed(() -> START_SEQUENCE = !START_SEQUENCE);
 
-        pinpoint.setPosition(new Pose2D(
-                DistanceUnit.INCH,
-                72, 72,
-                AngleUnit.RADIANS,
-                Math.toRadians(0.0)
-        ));
+        if (AlliancePresets.getGlobalPose() != null) {
+            pinpoint.setPosition(AlliancePresets.getGlobalPose());
+        } else {
+            pinpoint.setPosition(new Pose2D(
+                    DistanceUnit.INCH,
+                    72, 72,
+                    AngleUnit.RADIANS,
+                    Math.toRadians(0.0)
+            ));
+        }
 
         telemetry.addLine("Init Done");
         telemetry.update();
@@ -284,9 +298,6 @@ public class MainTeleOp extends CommandOpMode {
 
 
         // ===================== Turret Auto Aim =====================
-//        double gx = goalX_odom();
-//        double gy = goalY_odom();
-
         double gx = TURRET_TARGET_POSE.getX();
         double gy = TURRET_TARGET_POSE.getY();
 
@@ -296,10 +307,7 @@ public class MainTeleOp extends CommandOpMode {
 
         turret.update(currentPose);
 
-//        // ===================== VISION =====================
-//        double distLOS = limelight.getDistanceToTagCenterInches(false);
-//        double distGround = limelight.getDistanceToTagCenterInches(true);
-//        fuseXYFromLimelight(currentPose);
+        // ===================== VISION =====================
 
         // ===================== Auto-sort =====================
         ColourZoneDetection.Snapshot snap = czd.getStableSnapshot();
@@ -325,9 +333,10 @@ public class MainTeleOp extends CommandOpMode {
         double Hx = poseForHood.getX(DistanceUnit.INCH);
         double Hy = poseForHood.getY(DistanceUnit.INCH);
 
-//        outtake.updateAutoHoodFromField(Hx, Hy, TURRET_TARGET_POSE.getX(), TURRET_TARGET_POSE.getY());
         outtake.updateAutoHoodFromField(Hx, Hy, gx, gy);
         outtake.update();
+
+        cypher();
 
         // ===================== Telemetry =====================
         String data = String.format(Locale.US,
@@ -343,16 +352,6 @@ public class MainTeleOp extends CommandOpMode {
                 Math.toDegrees(follower.getPose().getHeading())
 
         );
-//        telemetry.addLine("----  Limelight Data  ----");
-//        telemetry.addData("LL valid", limelight.hasValidTarget());
-//        telemetry.addData("VisionReject", lastVisionReject);
-//        telemetry.addData("Distance (LOS, in)", distLOS);
-//        telemetry.addData("Distance (Ground, in)", distGround);
-//        telemetry.addData("Tx", limelight.getTx());
-//        telemetry.addData("Ty", limelight.getTy());
-//        telemetry.addData("Vision X", lastVisionX);
-//        telemetry.addData("Vision Y", lastVisionY);
-//        telemetry.addLine();
         telemetry.addLine("---- TURRET ----");
         telemetry.addData("Turret AutoAim", TURRET_AUTO_AIM);
         telemetry.addData("Target Pose", "X:%.1f Y:%.1f", TURRET_TARGET_POSE.getX(), TURRET_TARGET_POSE.getY());
@@ -360,6 +359,7 @@ public class MainTeleOp extends CommandOpMode {
         telemetry.addData("TargetFieldAngle", "%.1f°", turret.getTargetFieldDeg());
         telemetry.addData("TurretRobotCmd", "%.1f°", turret.getTurretRobotDegCmd());
         telemetry.addData("Turret ServoPos", "%.4f", turret.getServoPos());
+        telemetry.addData("Current Cypher", CIPHER);
         telemetry.addLine();
         telemetry.addLine("---- Hood Pose ----");
         telemetry.addData("Hood Pos", outtake.hoodPos());
@@ -386,8 +386,14 @@ public class MainTeleOp extends CommandOpMode {
 
     private Pose2D driveFieldRelative(double forward, double right, double rotate) {
         Pose2D pos = pinpoint.getPosition();  // Current position
+        double robotAngle = 0;
 
-        double robotAngle = Math.toRadians(pos.getHeading(AngleUnit.DEGREES));
+        if (isBlue) {
+            robotAngle = Math.toRadians(pos.getHeading(AngleUnit.DEGREES) - 180);
+        } else {
+            robotAngle = Math.toRadians(pos.getHeading(AngleUnit.DEGREES));
+        }
+
         double theta = Math.atan2(forward, right);
         double r = Math.hypot(forward, right);
         theta = AngleUnit
@@ -536,6 +542,19 @@ public class MainTeleOp extends CommandOpMode {
             case PAUSE:
                 if (timer.seconds() >= BETWEEN_SHOTS_PAUSE_S) { timer.reset(); state = RunState.KICK_UP; }
                 break;
+        }
+    }
+
+    private void cypher(){
+        switch (x){
+            case 1:
+                CIPHER = ShotOrderPlanner.Cipher.GPP;
+                break;
+            case 2:
+                CIPHER = ShotOrderPlanner.Cipher.PGP;
+            case 3:
+                CIPHER = ShotOrderPlanner.Cipher.PPG;
+                x = 0;
         }
     }
 

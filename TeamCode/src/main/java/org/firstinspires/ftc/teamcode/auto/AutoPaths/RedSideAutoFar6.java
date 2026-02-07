@@ -35,11 +35,11 @@ import java.util.List;
 
 @Config
 @Configurable
-@Autonomous(name = "Red Side Auto Far 9", group = "Red Autos", preselectTeleOp = "MainTeleOp")
-public class RedSideAutoFar9 extends OpMode {
+@Autonomous(name = "Red Side Auto Far 6", group = "Red Autos", preselectTeleOp = "MainTeleOp")
+public class RedSideAutoFar6 extends OpMode {
 
     // ===================== GOAL / AUTO AIM =====================
-    public static Pose TURRET_TARGET_POSE = new Pose(144, 136);   // field inches
+    public static Pose TURRET_TARGET_POSE = new Pose(140, 136);   // field inches
     public static double TURRET_TRIM_DEG = 0.0;                   // optional trim
 
     // ===================== AUTO-SORT / INDEXING =====================
@@ -81,7 +81,7 @@ public class RedSideAutoFar9 extends OpMode {
     public static double RPM_D4_IN = 120, RPM_P4 = 3800;
 
     public static double RPM_MIN = 0.0;
-    public static double RPM_MAX = 3900.0; //TODO: reset to 3800
+    public static double RPM_MAX = 3800.0; //TODO: reset to 3800
 
     // ===================== HARDWARE =====================
     private StaticShooter shooter;
@@ -113,7 +113,7 @@ public class RedSideAutoFar9 extends OpMode {
     private int pathState = 0;
 
     private final Pose startPose = new Pose(104.0, 8.2, Math.toRadians(0));
-    private PathChain line1, line2, line3, line4, line5, line6, line7, line8, line100;
+    private PathChain line1, line2, line3, line4, line5, line6;
 
     // ===================== BUILD PATHS =====================
     private void buildPaths() {
@@ -121,72 +121,45 @@ public class RedSideAutoFar9 extends OpMode {
                 .addPath(new BezierCurve(
                         new Pose(104.000, 8.200),
                         new Pose(109.000, 20.000),
-                        new Pose(113.000, 14.000)
+                        new Pose(119.000, 14.000)
                 ))
                 .setLinearHeadingInterpolation(Math.toRadians(67), Math.toRadians(0.0))
                 .build();
 
         line2 = follower.pathBuilder()
                 .addPath(new BezierLine(
-                        new Pose(113.000, 14.000),
-                        new Pose(137.000, 14.000)
+                        new Pose(119.000, 14.000),
+                        new Pose(135.000, 14.000)
                 ))
                 .setLinearHeadingInterpolation(Math.toRadians(0.0), Math.toRadians(0.0))
                 .build();
 
         line3 = follower.pathBuilder()
                 .addPath(new BezierLine(
-                        new Pose(137.000, 14.000),
-                        new Pose(113.000, 9.000)
+                        new Pose(135.000, 14.000),
+                        new Pose(119.000, 9.000)
                 ))
                 .setLinearHeadingInterpolation(Math.toRadians(0.0), Math.toRadians(0.0))
                 .build();
 
         line4 = follower.pathBuilder()
                 .addPath(new BezierLine(
-                        new Pose(113.000, 9.000),
-                        new Pose(137.000, 9.000)
+                        new Pose(119.000, 9.000),
+                        new Pose(135.000, 9.000)
                 ))
                 .setTangentHeadingInterpolation()
                 .build();
 
         line5 = follower.pathBuilder()
                 .addPath(new BezierCurve(
-                        new Pose(137.000, 9.000),
+                        new Pose(135.000, 9.000),
                         new Pose(124.000, 30.000),
                         new Pose(104.000, 8.200)
                 ))
                 .setLinearHeadingInterpolation(Math.toRadians(0.0), Math.toRadians(0))
                 .build();
-        line6 = follower.pathBuilder().addPath(
-                        new BezierLine(
-                                new Pose(104.000, 8.200),
 
-                                new Pose(101.000, 35.000)
-                        )
-                ).setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(0))
-
-                .build();
-
-        line7 = follower.pathBuilder().addPath(
-                        new BezierLine(
-                                new Pose(101.000, 35.000),
-
-                                new Pose(137.500, 35.000)
-                        )
-                )
-                .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(0.0))
-                .build();
-        line8 = follower.pathBuilder().addPath(
-                        new BezierLine(
-                                new Pose(137.500, 35.000),
-
-                                new Pose(104.000, 8.200)
-                        )
-                )
-                .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(0.0))
-                .build();
-        line100 = follower.pathBuilder()
+        line6 = follower.pathBuilder()
                 .addPath(new BezierLine(
                         new Pose(104.000, 8.200),
                         new Pose(109.000, 15.000)
@@ -352,6 +325,8 @@ public class RedSideAutoFar9 extends OpMode {
         turret.setEnabled(true);
         turret.update(turretPose);
 
+        shooter.setTargetRPM(RPM_MAX);
+
         // Auto hood based on distance
         outtake.updateAutoHoodFromField(robotX, robotY, goalX, goalY);
 
@@ -402,7 +377,6 @@ public class RedSideAutoFar9 extends OpMode {
                 // ensure stopped at start
                 if (!follower.isBusy()) {
                     follower.setMaxPower(1);
-                    shooter.setTargetRPM(RPM_MAX);
                     setPathState(1);
                 }
                 break;
@@ -453,14 +427,13 @@ public class RedSideAutoFar9 extends OpMode {
                 // Go back to shoot position
                 if (!follower.isBusy()) {
                     follower.followPath(line5);
-
+                    stopIntake();
                     setPathState(7);
                 }
                 break;
 
             case 7:
                 if (!follower.isBusy()) {
-                    stopIntake();
                     if (shooter.isAtTargetThreshold()) {
                         BeginShotSequenceIfIdle();
                         runStateMachine(shooter, kickers);
@@ -471,54 +444,19 @@ public class RedSideAutoFar9 extends OpMode {
                     }
                 }
                 break;
+
             case 8:
-                // second pick up place
+                // final move then stop
                 if (!follower.isBusy()) {
-                    intake();
                     follower.followPath(line6);
                     setPathState(9);
                 }
                 break;
+
             case 9:
-                // second pick up place
-                if (!follower.isBusy()) {
-                    intake();
-                    follower.followPath(line7);
-                    setPathState(10);
-                }
-                break;
-            case 10:
-                if (!follower.isBusy()){
-                    follower.followPath(line8);
-                    setPathState(11);
-                }
-            case 11:
-                if (!follower.isBusy()) {
-                    stopIntake();
-                    if (shooter.isAtTargetThreshold()) {
-                        BeginShotSequenceIfIdle();
-                        runStateMachine(shooter, kickers);
-                    }
-
-                    if (beamRunComplete() || state == RunState.DONE || pathTimer.getElapsedTimeSeconds() > 6.0) {
-                        setPathState(99);
-                    }
-                }
-                break;
-
-            case 99:
-                // final move then stop
-                if (!follower.isBusy()) {
-                    follower.followPath(line100);
-                    setPathState(100);
-                }
-                break;
-
-            case 100:
                 if (!follower.isBusy()) {
                     shooter.eStop();
-                    AlliancePresets.setCurrentPose(new Pose2D(DistanceUnit.INCH, follower.getPose().getX(), follower.getPose().getY(), AngleUnit.RADIANS, follower.getHeading()));
-                    follower.breakFollowing();
+                    follower.pausePathFollowing();
                 }
                 break;
         }

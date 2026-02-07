@@ -7,14 +7,18 @@ import org.firstinspires.ftc.robotcore.external.hardware.camera.WebcamName;
 import org.firstinspires.ftc.teamcode.auto.AprilTag.AprilTagDetectionPipeline;
 import org.firstinspires.ftc.teamcode.support.AlliancePresets;
 import org.openftc.apriltag.AprilTagDetection;
-import org.openftc.easyopencv.OpenCvCamera;
 import org.openftc.easyopencv.OpenCvCameraFactory;
 import org.openftc.easyopencv.OpenCvCameraRotation;
+import org.openftc.easyopencv.OpenCvWebcam;
+
+import org.firstinspires.ftc.robotcore.external.hardware.camera.controls.ExposureControl;
+import org.firstinspires.ftc.robotcore.external.hardware.camera.controls.GainControl;
+import java.util.concurrent.TimeUnit;
 
 import java.util.ArrayList;
 
 public class WebcamAprilTag extends SubsystemBase {
-    private OpenCvCamera camera;
+    private OpenCvWebcam camera;   // <-- change type
     private AprilTagDetectionPipeline pipeline;
 
     private AprilTagDetection tagOfInterest = null;
@@ -32,7 +36,8 @@ public class WebcamAprilTag extends SubsystemBase {
                 "id",
                 hardwareMap.appContext.getPackageName()
         );
-        camera = OpenCvCameraFactory.getInstance().createWebcam(
+
+        camera = OpenCvCameraFactory.getInstance().createWebcam(  // <-- returns OpenCvWebcam
                 hardwareMap.get(WebcamName.class, webcam),
                 cameraMonitorViewId
         );
@@ -40,14 +45,23 @@ public class WebcamAprilTag extends SubsystemBase {
         pipeline = new AprilTagDetectionPipeline(tagsize, fx, fy, cx, cy);
         camera.setPipeline(pipeline);
 
-        camera.openCameraDeviceAsync(new OpenCvCamera.AsyncCameraOpenListener() {
+        camera.openCameraDeviceAsync(new OpenCvWebcam.AsyncCameraOpenListener() {
             @Override
             public void onOpened() {
                 camera.startStreaming(800, 448, OpenCvCameraRotation.UPRIGHT);
+
+                ExposureControl exposure = camera.getExposureControl();
+                GainControl gain = camera.getGainControl();
+                pipeline.setDecimation(2.0f); // try 2–3 while scanning
+
+                exposure.setMode(ExposureControl.Mode.Manual);
+                exposure.setExposure(6, TimeUnit.MILLISECONDS); // try 4–10ms
+                gain.setGain(30);                               // try 20–80
             }
 
             @Override
-            public void onError(int errorCode) {}
+            public void onError(int errorCode) {
+            }
         });
     }
 
@@ -71,6 +85,10 @@ public class WebcamAprilTag extends SubsystemBase {
                 detectedTagId = tagOfInterest.id;
             }
         }
+    }
+
+    public int getDetectionCount() {
+        return pipeline.getLatestDetections().size();
     }
 
     public int getDetectedTag() {

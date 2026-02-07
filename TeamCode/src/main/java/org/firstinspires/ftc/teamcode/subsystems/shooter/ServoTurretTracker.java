@@ -67,7 +67,10 @@ public class ServoTurretTracker extends SubsystemBase {
 
     /** Main update: aim turret at target using current robot field pose. */
     public void update(Pose2D robotPose) {
-        if (!enabled) return;
+        if (!enabled) {
+            setPosition(P2);
+            return;
+        }
 
         // --- Read odom pose (inches) ---
         double rx = robotPose.getX(DistanceUnit.INCH);
