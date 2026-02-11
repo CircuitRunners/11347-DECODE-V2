@@ -37,9 +37,8 @@ import java.util.List;
 @Configurable
 @Autonomous(name = "Red Side Auto Far 9", group = "Red Autos", preselectTeleOp = "MainTeleOp")
 public class RedSideAutoFar9 extends OpMode {
-
     // ===================== GOAL / AUTO AIM =====================
-    public static Pose TURRET_TARGET_POSE = new Pose(144, 136);   // field inches
+    public static Pose TURRET_TARGET_POSE = new Pose(148, 136);   // field inches
     public static double TURRET_TRIM_DEG = 0.0;                   // optional trim
 
     // ===================== AUTO-SORT / INDEXING =====================
@@ -113,85 +112,64 @@ public class RedSideAutoFar9 extends OpMode {
     private int pathState = 0;
 
     private final Pose startPose = new Pose(104.0, 8.2, Math.toRadians(0));
-    private PathChain line1, line2, line3, line4, line5, line6, line7, line8, line100;
+    private PathChain line1, line2, line3, line4, line5, line6, line100;
 
     // ===================== BUILD PATHS =====================
     private void buildPaths() {
         line1 = follower.pathBuilder()
-                .addPath(new BezierCurve(
+                .addPath(new BezierLine(
                         new Pose(104.000, 8.200),
-                        new Pose(109.000, 20.000),
-                        new Pose(113.000, 14.000)
+                        new Pose(100.000, 35.000)
                 ))
-                .setLinearHeadingInterpolation(Math.toRadians(67), Math.toRadians(0.0))
+                .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(0.0))
                 .build();
 
         line2 = follower.pathBuilder()
                 .addPath(new BezierLine(
-                        new Pose(113.000, 14.000),
-                        new Pose(137.000, 14.000)
+                        new Pose(100.000, 35.000),
+                        new Pose(137.000, 35.000)
                 ))
                 .setLinearHeadingInterpolation(Math.toRadians(0.0), Math.toRadians(0.0))
                 .build();
 
         line3 = follower.pathBuilder()
                 .addPath(new BezierLine(
-                        new Pose(137.000, 14.000),
-                        new Pose(113.000, 9.000)
+                        new Pose(137.000, 35.000),
+                        new Pose(104.000, 8.200)
                 ))
                 .setLinearHeadingInterpolation(Math.toRadians(0.0), Math.toRadians(0.0))
                 .build();
 
         line4 = follower.pathBuilder()
                 .addPath(new BezierLine(
-                        new Pose(113.000, 9.000),
-                        new Pose(137.000, 9.000)
+                        new Pose(104.000, 8.200),
+                        new Pose(137.000, 35.000)
                 ))
-                .setTangentHeadingInterpolation()
+                .setLinearHeadingInterpolation(Math.toRadians(0.0), Math.toRadians(270.0))
                 .build();
 
         line5 = follower.pathBuilder()
-                .addPath(new BezierCurve(
-                        new Pose(137.000, 9.000),
-                        new Pose(124.000, 30.000),
-                        new Pose(104.000, 8.200)
+                .addPath(new BezierLine(
+                        new Pose(136.000, 8.000),
+                        new Pose(124.000, 30.000)
                 ))
-                .setLinearHeadingInterpolation(Math.toRadians(0.0), Math.toRadians(0))
+                .setLinearHeadingInterpolation(Math.toRadians(270.0), Math.toRadians(270))
                 .build();
         line6 = follower.pathBuilder().addPath(
                         new BezierLine(
-                                new Pose(104.000, 8.200),
-
-                                new Pose(101.000, 35.000)
-                        )
-                ).setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(0))
-
-                .build();
-
-        line7 = follower.pathBuilder().addPath(
-                        new BezierLine(
-                                new Pose(101.000, 35.000),
-
-                                new Pose(137.500, 35.000)
-                        )
-                )
-                .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(0.0))
-                .build();
-        line8 = follower.pathBuilder().addPath(
-                        new BezierLine(
-                                new Pose(137.500, 35.000),
+                                new Pose(136.000, 8.00),
 
                                 new Pose(104.000, 8.200)
                         )
-                )
-                .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(0.0))
+                ).setLinearHeadingInterpolation(Math.toRadians(270), Math.toRadians(0))
+
                 .build();
         line100 = follower.pathBuilder()
                 .addPath(new BezierLine(
                         new Pose(104.000, 8.200),
                         new Pose(109.000, 15.000)
                 ))
-                .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(0.0))
+                .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(0))
                 .build();
     }
 
@@ -314,7 +292,7 @@ public class RedSideAutoFar9 extends OpMode {
         if (cypherTracker != null) cypherId = cypherTracker.update();
 
         // Stop Camera
-        if (cypherCam != null) cypherCam.stopCamera();
+//        if (cypherCam != null) cypherCam.stopCamera();
 
         int id = AlliancePresets.getCurrentCypher();
         if (id == 21) CIPHER = ShotOrderPlanner.Cipher.GPP;
@@ -380,8 +358,12 @@ public class RedSideAutoFar9 extends OpMode {
 
     @Override
     public void stop() {
-        follower.breakFollowing();
         shooter.eStop();
+        follower.breakFollowing();
+        if (outtakeThread != null) {
+            outtakeThread.interrupt();
+        }
+        if (cypherCam != null) cypherCam.stopCamera();
     }
 
     private void setPathState(int newState) {
@@ -438,22 +420,6 @@ public class RedSideAutoFar9 extends OpMode {
             case 4:
                 if (!follower.isBusy()) {
                     follower.followPath(line3);
-                    setPathState(5);
-                }
-                break;
-
-            case 5:
-                if (!follower.isBusy()) {
-                    follower.followPath(line4);
-                    setPathState(6);
-                }
-                break;
-
-            case 6:
-                // Go back to shoot position
-                if (!follower.isBusy()) {
-                    follower.followPath(line5);
-
                     setPathState(7);
                 }
                 break;
@@ -475,7 +441,7 @@ public class RedSideAutoFar9 extends OpMode {
                 // second pick up place
                 if (!follower.isBusy()) {
                     intake();
-                    follower.followPath(line6);
+                    follower.followPath(line4);
                     setPathState(9);
                 }
                 break;
@@ -483,15 +449,17 @@ public class RedSideAutoFar9 extends OpMode {
                 // second pick up place
                 if (!follower.isBusy()) {
                     intake();
-                    follower.followPath(line7);
+                    follower.followPath(line5);
                     setPathState(10);
                 }
                 break;
             case 10:
                 if (!follower.isBusy()){
-                    follower.followPath(line8);
+                    follower.followPath(line6);
                     setPathState(11);
                 }
+                break;
+
             case 11:
                 if (!follower.isBusy()) {
                     stopIntake();

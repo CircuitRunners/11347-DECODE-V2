@@ -162,7 +162,7 @@ public class MainTeleOp extends CommandOpMode {
         limelight.setAllianceTagID(AlliancePresets.getAllianceShooterTag());
 
         isBlue = (AlliancePresets.getAllianceShooterTag() == AlliancePresets.Alliance.BLUE.getTagId());
-        TURRET_TARGET_POSE = isBlue ? new Pose(-6, 136) : new Pose(138, 136);
+        TURRET_TARGET_POSE = isBlue ? new Pose(-4, 136) : new Pose(142, 136);
 
         drive = new MecanumDrivebase(hardwareMap);
         intake = new IntakeSubsystem(hardwareMap, telemetry);
@@ -257,6 +257,15 @@ public class MainTeleOp extends CommandOpMode {
             ));
         }
 
+        driver.getGamepadButton(GamepadKeys.Button.RIGHT_BUMPER)
+                        .whenPressed(new InstantCommand(()-> {
+                            if (isBlue) {
+                                TURRET_TARGET_POSE = new Pose(138, 136);
+                            } else {
+                                TURRET_TARGET_POSE = new Pose(-6, 138);
+                            }
+                        }));
+
         telemetry.addLine("Init Done");
         telemetry.update();
     }
@@ -264,6 +273,8 @@ public class MainTeleOp extends CommandOpMode {
     @Override
     public void run() {
         super.run();
+        driver.readButtons();
+        manipulator.readButtons();
         czd.update();
         shooter.update();
         limelight.update();

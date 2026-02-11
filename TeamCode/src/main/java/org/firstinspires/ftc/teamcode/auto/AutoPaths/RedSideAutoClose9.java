@@ -36,7 +36,6 @@ import java.util.List;
 @Configurable
 @Autonomous(name = "Red Side Auto Close 6", group = "Red Autos", preselectTeleOp = "MainTeleOp")
 public class RedSideAutoClose9 extends OpMode {
-
     // ===================== GOAL / AUTO AIM =====================
     public static Pose TURRET_TARGET_POSE = new Pose(140, 136);   // field inches
     public static double TURRET_TRIM_DEG = 0.0;                   // optional trim
@@ -143,7 +142,7 @@ public class RedSideAutoClose9 extends OpMode {
         line3 = follower
                 .pathBuilder()
                 .addPath(
-                        new BezierLine(new Pose(97.000, 84.000), new Pose(125.000, 84.000))
+                        new BezierLine(new Pose(97.000, 84.000), new Pose(130.000, 84.000))
                 )
                 .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(0))
                 .build();
@@ -187,7 +186,7 @@ public class RedSideAutoClose9 extends OpMode {
         line8 = follower
                 .pathBuilder()
                 .addPath(
-                        new BezierLine(new Pose(100.000, 100.000), new Pose(120.000, 75.000))
+                        new BezierLine(new Pose(100.000, 100.000), new Pose(110.000, 75.000))
                 )
                 .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(0))
                 .build();
@@ -401,7 +400,12 @@ public class RedSideAutoClose9 extends OpMode {
     @Override
     public void stop() {
         follower.breakFollowing();
-        shooter.eStop();
+
+        if (outtakeThread != null) {
+            outtakeThread.interrupt();
+        }
+
+        cypherCam.stopCamera();
     }
 
     private void setPathState(int newState) {
@@ -495,18 +499,21 @@ public class RedSideAutoClose9 extends OpMode {
                     setPathState(7);
                 }
                 break;
+
             case 7:
                 if (!follower.isBusy()) {
                     follower.followPath(line6);
                     setPathState(8);
                 }
                 break;
+
             case 8:
                 if (!follower.isBusy()) {
                     follower.followPath(line7);
                     setPathState(9);
                 }
                 break;
+
             case 9:
                 if (!follower.isBusy()) {
                     if (shooter.isAtTargetThreshold()) {
@@ -519,16 +526,20 @@ public class RedSideAutoClose9 extends OpMode {
                     }
                 }
                 break;
+
             case 99:
                 if (!follower.isBusy()) {
-                    follower.followPath(line8);
+                    follower.followPath(line8, false);
+                    setPathState(100);
                 }
+                break;
 
             case 100:
                 if (!follower.isBusy()) {
                     AlliancePresets.setCurrentPose(new Pose2D(DistanceUnit.INCH, follower.getPose().getX(), follower.getPose().getY(), AngleUnit.RADIANS, follower.getHeading()));
+                    RPM_MAX = 0;
                     shooter.eStop();
-                    follower.pausePathFollowing();
+                    follower.breakFollowing();
                 }
                 break;
         }

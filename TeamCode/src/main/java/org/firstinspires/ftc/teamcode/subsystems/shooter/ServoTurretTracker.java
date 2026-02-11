@@ -39,7 +39,6 @@ public class ServoTurretTracker extends SubsystemBase {
     public static double HEADING_OFFSET_DEG = 0.0;
 
     // ===================== Calibration (deg -> servo pos) =====================
-    // Your provided calibration (90deg is start/mid)
     public static double A0_DEG = 0.0;   public static double P0 = 0.76;
     public static double A1_DEG = 45.0;  public static double P1 = 0.62;
     public static double A2_DEG = 90.0;  public static double P2 = 0.50;
