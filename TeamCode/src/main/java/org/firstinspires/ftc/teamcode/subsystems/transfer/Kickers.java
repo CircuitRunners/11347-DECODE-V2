@@ -84,7 +84,13 @@ public class Kickers extends SubsystemBase {
         kickerServo3.setPosition(KickerState.DOWN.getKickerThreePosition());
     }
 
-    public void setZoneOnePos(double p) { kickerServo1.setPosition(p); }
-    public void setZoneTwoPos(double p) { kickerServo2.setPosition(p); }
-    public void setZoneThreePos(double p) { kickerServo3.setPosition(p); }
+    public void setZoneOnePos(double p) {
+        kickerServo1.setPosition(p);
+    }
+    public void setZoneTwoPos(double p) {
+        kickerServo2.setPosition(p);
+    }
+    public void setZoneThreePos(double p) {
+        kickerServo3.setPosition(p);
+    }
 }

@@ -23,9 +23,6 @@ public class IntakeSubsystem extends SubsystemBase {
         intakeChubS = new CRServo(hardwareMap, "intakeChubServo");
         intakeEhubS = new CRServo(hardwareMap, "intakeEhubServo");
 
-//        intakeChubS = hardwareMap.get(CRServo.class, "intakeChubServo");
-//        intakeEhubS = hardwareMap.get(CRServo.class, "intakeEhubServo");
-
         intakeChubM.setMode(DcMotorEx.RunMode.RUN_WITHOUT_ENCODER);
         intakeEhubM.setMode(DcMotorEx.RunMode.RUN_WITHOUT_ENCODER);
 
