@@ -209,6 +209,11 @@ public class StaticShooter extends SubsystemBase {
         active = Math.abs(getTargetRPM()) > 0;
     }
 
+    @Override
+    public void periodic() {
+        update();
+    }
+
     /** Stops all shooter motion immediately. */
     public void eStop() {
         shooter1.setPower(0);

@@ -19,15 +19,15 @@ public class ServoTurretTracker extends SubsystemBase {
     private double targetY = 0.0;
 
     // ===================== Servo limits =====================
-    public static double SERVO_MIN = 0.2;
-    public static double SERVO_MAX = 0.8;
+    public static double SERVO_MIN = 0.27;
+    public static double SERVO_MAX = 0.82;
 
     // Robot-relative trim
     public static double TURRET_TRIM_DEG = 0.0;
 
     // Robot-relative aiming window (your physical turret window)
     public static double TURRET_WINDOW_MIN_DEG = 0.0;
-    public static double TURRET_WINDOW_MAX_DEG = 190.0;
+    public static double TURRET_WINDOW_MAX_DEG = 180.0;
 
     // ===================== ODOMETRY FRAME FIX UPS =====================
     // Use these to match corrected Pinpoint (swap/invert axes) without rewriting math.
@@ -35,21 +35,25 @@ public class ServoTurretTracker extends SubsystemBase {
     public static boolean INVERT_X = false;
     public static boolean INVERT_Y = false;
 
-    // If your heading reference changed (e.g., you previously “-180” everywhere), fix here once.
+    // For if the heading reference changed
     public static double HEADING_OFFSET_DEG = 0.0;
+    // Robot-frame offset from odom origin to turret pivot (inches)
+    // +X forward, +Y left (or whatever your robot frame is)
+    public static double TURRET_OFFSET_X_IN = 0.0;
+    public static double TURRET_OFFSET_Y_IN = 0.0;
 
     // ===================== Calibration (deg -> servo pos) =====================
-    public static double A0_DEG = 0.0;   public static double P0 = 0.76;
-    public static double A1_DEG = 45.0;  public static double P1 = 0.62;
-    public static double A2_DEG = 90.0;  public static double P2 = 0.50;
-    public static double A3_DEG = 135.0; public static double P3 = 0.38;
-    public static double A4_DEG = 190.0; public static double P4 = 0.20;
+    public static double A0_DEG = 0.0;   public static double P0 = 0.29;
+    public static double A1_DEG = 45.0;  public static double P1 = 0.4;
+    public static double A2_DEG = 90.0;  public static double P2 = 0.545;
+    public static double A3_DEG = 135.0; public static double P3 = 0.67;
+    public static double A4_DEG = 180.0; public static double P4 = 0.8;
 
     // ===================== Telemetry =====================
     private double lastTargetFieldDeg = 0.0;
     private double lastRobotFieldHeadingDeg = 0.0;
     private double lastTurretRobotDegCmd = 90.0;
-    private double lastServoPosCmd = 0.50;
+    private double lastServoPosCmd = 0.505;
 
     public ServoTurretTracker(HardwareMap hw, String servoName) {
         turret = hw.get(Servo.class, servoName);
@@ -82,12 +86,20 @@ public class ServoTurretTracker extends SubsystemBase {
         if (INVERT_X) rx = -rx;
         if (INVERT_Y) ry = -ry;
 
-        // --- Heading (degrees), normalized 0..360 ---
-        double robotFieldHeadingDeg =
-                wrap0to360(Math.toDegrees(robotPose.getHeading(AngleUnit.RADIANS)) + HEADING_OFFSET_DEG);
+        // --- Heading in radians and degrees ---
+        double robotHeadingRad = robotPose.getHeading(AngleUnit.RADIANS) + Math.toRadians(HEADING_OFFSET_DEG);
+        double robotFieldHeadingDeg = wrap0to360(Math.toDegrees(robotHeadingRad));
 
-        // --- Field bearing robot -> target (0..360) ---
-        double targetFieldDeg = wrap0to360(Math.toDegrees(Math.atan2(targetY - ry, targetX - rx)));
+        // --- Compute turret pivot field position from robot pose + rotated offset ---
+        double cosH = Math.cos(robotHeadingRad);
+        double sinH = Math.sin(robotHeadingRad);
+
+        // If your robot frame is X forward, Y left:
+        double pivotX = rx + (TURRET_OFFSET_X_IN * cosH - TURRET_OFFSET_Y_IN * sinH);
+        double pivotY = ry + (TURRET_OFFSET_X_IN * sinH + TURRET_OFFSET_Y_IN * cosH);
+
+        // --- Field bearing turretPivot -> target (0..360) ---
+        double targetFieldDeg = wrap0to360(Math.toDegrees(Math.atan2(targetY - pivotY, targetX - pivotX)));
 
         // --- Robot-relative turret angle we want ---
         // Wrap to (-180..180) first so "closest" selection behaves well.

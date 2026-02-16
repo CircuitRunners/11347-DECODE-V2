@@ -8,13 +8,12 @@ import org.firstinspires.ftc.teamcode.subsystems.shooter.OuttakeSubsystem
 
 class IntakeCommand(
     private val inSubsystem: IntakeSubsystem,
-    private val out: OuttakeSubsystem,
     private val driver: GamepadEx
 ) : CommandBase() {
 
 
     init {
-        addRequirements(inSubsystem, out)
+        addRequirements(inSubsystem)
     }
 
     override fun execute() {

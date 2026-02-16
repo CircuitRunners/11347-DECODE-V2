@@ -12,16 +12,13 @@ import com.pedropathing.follower.Follower;
 import com.pedropathing.geometry.Pose;
 import com.pedropathing.math.MathFunctions;
 import com.pedropathing.math.Vector;
-import com.qualcomm.hardware.gobilda.GoBildaPinpointDriver;
-import com.qualcomm.hardware.limelightvision.LLResult;
+import com.pedropathing.util.Timer;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.util.ElapsedTime;
-import com.qualcomm.robotcore.util.Range;
 
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.Pose2D;
-import org.firstinspires.ftc.robotcore.external.navigation.Pose3D;
 import org.firstinspires.ftc.teamcode.auto.BulkCacheCommand;
 import org.firstinspires.ftc.teamcode.commands.IntakeCommand;
 import org.firstinspires.ftc.teamcode.commands.ShotOrderPlanner;
@@ -30,11 +27,12 @@ import org.firstinspires.ftc.teamcode.subsystems.drive.MecanumDrivebase;
 import org.firstinspires.ftc.teamcode.subsystems.intake.IntakeSubsystem;
 import org.firstinspires.ftc.teamcode.subsystems.shooter.OuttakeSubsystem;
 import org.firstinspires.ftc.teamcode.subsystems.shooter.StaticShooter;
-import org.firstinspires.ftc.teamcode.subsystems.shooter.ServoTurretTracker; // NEW
+import org.firstinspires.ftc.teamcode.subsystems.shooter.ServoTurretTracker;
 import org.firstinspires.ftc.teamcode.subsystems.transfer.ColourZoneDetection;
 import org.firstinspires.ftc.teamcode.subsystems.transfer.Kickers;
 import org.firstinspires.ftc.teamcode.subsystems.vision.LimelightSubsystem;
 import org.firstinspires.ftc.teamcode.support.AlliancePresets;
+import org.firstinspires.ftc.teamcode.support.OdoAbsoluteHeadingTracking;
 
 import java.util.Collections;
 import java.util.List;
@@ -43,31 +41,20 @@ import java.util.Locale;
 @Config
 @TeleOp(group = "1")
 public class MainTeleOp extends CommandOpMode {
-
-    // ---- Turret auto-aim ----
-    public static boolean TURRET_AUTO_AIM = false;
-
-    // Target pose (Pedro coords, inches)
     public static Pose TURRET_TARGET_POSE = new Pose(0, 136);
+    public static int redX = 137;
+    public static int redY = 136;
+    private final int blueX = -4;
+    private final int blueY = 136;
     boolean isBlue = false;
-     public static double FIELD_SIZE_IN = 144.0;
 
-     private double goalX_odom() {
-         return FIELD_SIZE_IN - TURRET_TARGET_POSE.getX();
-     }
-
-     private double goalY_odom() {
-         return FIELD_SIZE_IN - TURRET_TARGET_POSE.getY();
-     }
-
-    // Optional: turret trim (deg)
     public static double TURRET_TRIM_DEG = 0.0;
 
     // ---- Auto-sort / indexing ----
     public static ShotOrderPlanner.Cipher CIPHER = ShotOrderPlanner.Cipher.PPG;
     public static boolean START_SEQUENCE = false;
     public static boolean ABORT_SEQUENCE = false;
-    public static boolean FORCE_SHOOT_ALL_ZONES = true;
+    public static boolean FORCE_SHOOT_ALL_ZONES = false;
 
     public static double SHOOTER_TARGET_RPM = 3800.0;
     public static boolean SHOOTER_ENABLED = true;
@@ -86,30 +73,13 @@ public class MainTeleOp extends CommandOpMode {
     private OuttakeSubsystem outtake;
     private ServoTurretTracker turret;
     private LimelightSubsystem limelight;
-    private GoBildaPinpointDriver pinpoint;
 
     // ===================== Software =====================
     private ShotOrderPlanner planner;
     private ColourZoneDetection czd;
+    private OdoAbsoluteHeadingTracking odoHeading;
     private GamepadEx driver, manipulator;
     private int x = 0;
-
-     // ===================== VISION =====================
-     public static boolean VISION_FUSE_XY = false;
-     public static double VISION_RATE_HZ = 5.0;
-     public static double VISION_ALPHA = 0.25;
-     public static double VISION_MAX_JUMP_IN = 18.0;
-     public static double VISION_MAX_TX_DEG = 8.0;
-     public static double VISION_MIN_DIST_IN = 8.0;        // reject ultra-close junk
-     public static double VISION_MAX_DIST_IN = 200.0;      // reject far junk
-     public static double TURRET_WINDOW_EDGE_DEG = 7.0;    // deadband from turret limits
-     private double lastVisionX = Double.NaN;
-     private double lastVisionY = Double.NaN;
-     private double lastVisionUpdateS = 0.0;
-     private String lastVisionReject = "none";
-     private double txHoldDeg = Double.NaN;
-     private double txHoldTimeS = 0.0;
-     public static double TX_HOLD_SEC = 0.10; // 100ms
 
     // ===================== Dashboard telemetry =====================
     private FtcDashboard dash;
@@ -122,20 +92,19 @@ public class MainTeleOp extends CommandOpMode {
     private final ElapsedTime shooterReadyTimer = new ElapsedTime();
     private List<ShotOrderPlanner.PlannedShot> plan = Collections.emptyList();
     private int stepIdx = 0;
-    private boolean lastStart = false;
-    //new stuff
-    private Pose GOAL_POS_RED = new Pose(138,136); //138, 138
+
+    private Pose GOAL_POS_RED = new Pose(138, 138); //138, 138
     public static double SCORE_HEIGHT = 25;
     private double SCORE_ANGLE = Math.toRadians(-30);
-    private double PASS_THROUGH_POINT_RADIUS =5;
+    private double PASS_THROUGH_POINT_RADIUS = 5;
     public static  double HOOD_MAX_ANGLE = Math.toRadians(67);
     public static double HOOD_MIN_ANGLE = Math.toRadians(0);
-    public static double wheelDiameter = 4.9;
-    public static double maxHoodTicks = 0.8;
+    public static double wheelDiameter = 4.8; //4.9
     private double hoodAngle = 0;
     private double flywheelSpeed = 0;
     private boolean usePhysics = true;
     private Follower follower;
+    private Timer loopTimer;
 
     @Override
     public void initialize() {
@@ -145,39 +114,38 @@ public class MainTeleOp extends CommandOpMode {
         dash.setTelemetryTransmissionInterval(25);
         telemetry = new MultipleTelemetry(telemetry, dash.getTelemetry());
 
-
         driver = new GamepadEx(gamepad1);
         manipulator = new GamepadEx(gamepad2);
-
-        // Pinpoint
-        pinpoint = hardwareMap.get(GoBildaPinpointDriver.class, "pinpoint");
-        configurePinpoint();
 
         // Subsystems
         shooter = new StaticShooter(hardwareMap, telemetry);
         shooter.setTargetRPM(0);
 
         limelight = new LimelightSubsystem(hardwareMap, "limelight");
-//        AlliancePresets.setAllianceShooterTag(AlliancePresets.Alliance.BLUE.getTagId());
         limelight.setAllianceTagID(AlliancePresets.getAllianceShooterTag());
 
         isBlue = (AlliancePresets.getAllianceShooterTag() == AlliancePresets.Alliance.BLUE.getTagId());
-        TURRET_TARGET_POSE = isBlue ? new Pose(-4, 136) : new Pose(142, 136);
+        TURRET_TARGET_POSE = isBlue ? new Pose(blueX, blueY) : new Pose(redX, redY);
 
         drive = new MecanumDrivebase(hardwareMap);
         intake = new IntakeSubsystem(hardwareMap, telemetry);
         outtake = new OuttakeSubsystem(hardwareMap);
         kickers = new Kickers(hardwareMap);
+        odoHeading = new OdoAbsoluteHeadingTracking(
+                intake.leftOdoMotor(),
+                intake.rightOdoMotor()
+        );
 
         follower = Constants.createFollower(hardwareMap);
 
-        czd = new ColourZoneDetection(hardwareMap, "srsHubIndexer", "srsHubPlate");
-        planner = new ShotOrderPlanner();
-
-        // NEW turret tracker
+        czd = new ColourZoneDetection(hardwareMap,
+                "z1CSa", "z2CSa", "z3CSa",
+                "z1CSb", "z2CSb", "z3CSb");        planner = new ShotOrderPlanner();
         turret = new ServoTurretTracker(hardwareMap, "turret");
         turret.setEnabled(false);
         turret.setTargetFieldPointInches(TURRET_TARGET_POSE.getX(), TURRET_TARGET_POSE.getY());
+
+        loopTimer = new Timer();
 
         // Kicker reset
         kickers.resetZoneOne();
@@ -185,87 +153,77 @@ public class MainTeleOp extends CommandOpMode {
         kickers.resetZoneThree();
 
         driver.getGamepadButton(GamepadKeys.Button.DPAD_UP)
-                .whenPressed(new InstantCommand(()-> {
-                    usePhysics = true;
-                }));
-        driver.getGamepadButton(GamepadKeys.Button.DPAD_DOWN)
-                .whenPressed(new InstantCommand(()-> {
-                    usePhysics = true;
-                }));
-
-
+                .whenPressed(new InstantCommand(()-> usePhysics = !usePhysics));
 
         // ===================== Commands =====================
-        intake.setDefaultCommand(new IntakeCommand(intake, outtake, driver));
+        intake.setDefaultCommand(new IntakeCommand(intake, driver));
 
         // Driver toggle for turret auto-aim
         driver.getGamepadButton(GamepadKeys.Button.A)
                 .whenPressed(() -> {
-                    TURRET_AUTO_AIM = !TURRET_AUTO_AIM;
+                    turret.setEnabled(!turret.isEnabled());
                     outtake.setAutomatic(!outtake.isAutomatic());
                 });
 
         driver.getGamepadButton(GamepadKeys.Button.B)
                 .whenPressed(new InstantCommand(()-> {
-                    Pose2D pose = pinpoint.getPosition();
-                    double headingOffset = pose.getHeading(AngleUnit.RADIANS);
-                    pinpoint.setPosition(
-                            new Pose2D(
-                                    DistanceUnit.INCH,
-                                    pose.getX(DistanceUnit.INCH),
-                                    pose.getY(DistanceUnit.INCH),
-                                    AngleUnit.RADIANS,
-                                    Math.toRadians(0.0)
-                            ));
+                    Pose pose = follower.getPose();
+                    follower.setPose(new Pose(
+                            pose.getX(),
+                            pose.getY(),
+                            0.0
+                    ));
+                    odoHeading.reset(0.0);
                 }));
 
         driver.getGamepadButton(GamepadKeys.Button.DPAD_UP)
-                        .whileHeld(new InstantCommand(()->
-                                outtake.aiming(true, false)
-                        ));
+                    .whileHeld(new InstantCommand(()->
+                            outtake.aiming(true, false)
+                    ));
 
         driver.getGamepadButton(GamepadKeys.Button.DPAD_DOWN)
-                        .whileHeld(new InstantCommand(()->
-                                outtake.aiming(false, true)
-                        ));
+                    .whileHeld(new InstantCommand(()->
+                            outtake.aiming(false, true)
+                    ));
         driver.getGamepadButton(GamepadKeys.Button.DPAD_LEFT)
                 .whenPressed(new InstantCommand(()-> {
-                    pinpoint.setPosition(
-                            new Pose2D(
-                                    DistanceUnit.INCH,
-                                    72,
-                                    72,
-                                    AngleUnit.RADIANS,
-                                    Math.toRadians(0.0)
-                            ));
+                    follower.setPose(new Pose(
+                            72,
+                            72,
+                            0.0
+                    ));
+                    odoHeading.reset(0.0);
                 }));
+
         driver.getGamepadButton(GamepadKeys.Button.DPAD_RIGHT)
-                .whenPressed(new InstantCommand(()-> {
-                    x++;
-                }));
+                .whenPressed(new InstantCommand(()-> x++));
+
         driver.getGamepadButton(GamepadKeys.Button.LEFT_BUMPER)
-                .whenPressed(() -> START_SEQUENCE = !START_SEQUENCE);
+                .whenPressed(() -> START_SEQUENCE = true);
 
         if (AlliancePresets.getGlobalPose() != null) {
-            pinpoint.setPosition(AlliancePresets.getGlobalPose());
+            follower.setPose(AlliancePresets.getGlobalPose());
+            odoHeading.reset(0.0);
         } else {
-            pinpoint.setPosition(new Pose2D(
-                    DistanceUnit.INCH,
-                    72, 72,
-                    AngleUnit.RADIANS,
-                    Math.toRadians(0.0)
+            follower.setPose(new Pose(
+                    72,
+                    72,
+                    0.0
             ));
+            odoHeading.reset(0.0);
         }
 
         driver.getGamepadButton(GamepadKeys.Button.RIGHT_BUMPER)
                         .whenPressed(new InstantCommand(()-> {
                             if (isBlue) {
-                                TURRET_TARGET_POSE = new Pose(138, 136);
+                                TURRET_TARGET_POSE = new Pose(redX, redY);
                             } else {
-                                TURRET_TARGET_POSE = new Pose(-6, 138);
+                                TURRET_TARGET_POSE = new Pose(blueX, blueY);
                             }
+                            isBlue = !isBlue;
                         }));
 
+        register(limelight, shooter, czd, odoHeading);
         telemetry.addLine("Init Done");
         telemetry.update();
     }
@@ -273,27 +231,39 @@ public class MainTeleOp extends CommandOpMode {
     @Override
     public void run() {
         super.run();
+        loopTimer.resetTimer();
         driver.readButtons();
         manipulator.readButtons();
-        czd.update();
-        shooter.update();
-        limelight.update();
-        pinpoint.update();
+        follower.update();
+        cypher();
 
+        // ===================== Auto-sort =====================
         shooter.setTargetRPM(SHOOTER_ENABLED ? SHOOTER_TARGET_RPM : 0.0);
+        ColourZoneDetection.Snapshot snap = czd.getStableSnapshot();
+        if (ABORT_SEQUENCE) {
+            ABORT_SEQUENCE = false;
+            abortNow(shooter, kickers);
+        }
 
-        Pose2D currentPose = pinpoint.getPosition();
-        double x = currentPose.getX(DistanceUnit.INCH);
-        double y = currentPose.getY(DistanceUnit.INCH);
+        if (START_SEQUENCE && (state == RunState.IDLE || state == RunState.DONE || state == RunState.ABORTED)) {
+            START_SEQUENCE = false;
+            beginRun(planner, snap, shooter, kickers);
+        }
 
-        calculateHoodPos(x, y);
+        runStateMachine(shooter, kickers);
+
+        // Field Pose
+        Pose currentPose = follower.getPose();
+        double x = currentPose.getX();
+        double y = currentPose.getY();
+        double heading = odoHeading.getHeadingRad();
+
+        calculateHoodPos(x, y, heading, follower.getVelocity());
 
         double gearRatio = 1.0;
 
-        double wheelRPM = (flywheelSpeed * 60.0) / (Math.PI * (wheelDiameter/4.0));
+        double wheelRPM = (flywheelSpeed * 60.0) / (Math.PI * (wheelDiameter / 4.0));
         double motorRPM = wheelRPM * gearRatio;
-
-        double hoodPos = (maxHoodTicks - Range.scale(hoodAngle, HOOD_MIN_ANGLE, HOOD_MAX_ANGLE, 0.0, 0.45));
 
         if (usePhysics) {
             shooter.setTargetRPM(motorRPM);
@@ -304,9 +274,8 @@ public class MainTeleOp extends CommandOpMode {
         double right = driver.getLeftX();
         double rotate = driver.getRightX();
 
-        Pose2D drivePose;
+        Pose drivePose;
         drivePose = driveFieldRelative(forward, right, rotate);
-
 
         // ===================== Turret Auto Aim =====================
         double gx = TURRET_TARGET_POSE.getX();
@@ -314,47 +283,40 @@ public class MainTeleOp extends CommandOpMode {
 
         turret.setTargetFieldPointInches(gx, gy);
         ServoTurretTracker.TURRET_TRIM_DEG = TURRET_TRIM_DEG;
-        turret.setEnabled(TURRET_AUTO_AIM);
 
-        turret.update(currentPose);
+        follower.update();
 
-        // ===================== VISION =====================
+        Pose2D turretPose = new Pose2D(
+                DistanceUnit.INCH,
+                follower.getPose().getX(),
+                follower.getPose().getY(),
+                AngleUnit.RADIANS,
+                odoHeading.getHeadingRad()
+        );
 
-        // ===================== Auto-sort =====================
-        ColourZoneDetection.Snapshot snap = czd.getStableSnapshot();
-        if (ABORT_SEQUENCE) {
-            ABORT_SEQUENCE = false;
-            abortNow(shooter, kickers);
-        }
-
-        boolean startEdge = START_SEQUENCE && !lastStart;
-        lastStart = START_SEQUENCE;
-
-        if (startEdge && (state == RunState.IDLE || state == RunState.DONE || state == RunState.ABORTED)) {
-            START_SEQUENCE = false;
-            beginRun(planner, snap, shooter, kickers);
-        }
-
-        runStateMachine(shooter, kickers);
-
-        // ===================== Intake =====================
+        turret.update(turretPose);
 
         // ===================== OUTTAKE =====================
-        Pose2D poseForHood = pinpoint.getPosition();
+        Pose2D poseForHood = new Pose2D(
+                DistanceUnit.INCH,
+                follower.getPose().getX(),
+                follower.getPose().getY(),
+                AngleUnit.RADIANS,
+                odoHeading.getHeadingRad()
+        );
+
         double Hx = poseForHood.getX(DistanceUnit.INCH);
         double Hy = poseForHood.getY(DistanceUnit.INCH);
 
         outtake.updateAutoHoodFromField(Hx, Hy, gx, gy);
         outtake.update();
 
-        cypher();
-
         // ===================== Telemetry =====================
         String data = String.format(Locale.US,
                 "{X: %.3f, Y: %.3f, H: %.3f}",
-                drivePose.getX(DistanceUnit.INCH),
-                drivePose.getY(DistanceUnit.INCH),
-                drivePose.getHeading(AngleUnit.DEGREES)
+                drivePose.getX(),
+                drivePose.getY(),
+                drivePose.getHeading()
         );
         String followerData = String.format(Locale.US,
                 "{X: %.3f, Y: %.3f, H: %.3f}",
@@ -363,8 +325,11 @@ public class MainTeleOp extends CommandOpMode {
                 Math.toDegrees(follower.getPose().getHeading())
 
         );
+        telemetry.addLine("---- LOOP TIMER ----");
+        telemetry.addData("loop time",loopTimer.getElapsedTime());
+        telemetry.addLine();
         telemetry.addLine("---- TURRET ----");
-        telemetry.addData("Turret AutoAim", TURRET_AUTO_AIM);
+        telemetry.addData("Turret AutoAim", turret.isEnabled());
         telemetry.addData("Target Pose", "X:%.1f Y:%.1f", TURRET_TARGET_POSE.getX(), TURRET_TARGET_POSE.getY());
         telemetry.addData("RobotFieldHeading", "%.1f°", turret.getRobotFieldHeadingDeg());
         telemetry.addData("TargetFieldAngle", "%.1f°", turret.getTargetFieldDeg());
@@ -373,36 +338,35 @@ public class MainTeleOp extends CommandOpMode {
         telemetry.addData("Current Cypher", CIPHER);
         telemetry.addLine();
         telemetry.addLine("---- Hood Pose ----");
-        telemetry.addData("Hood Pos", outtake.hoodPos());
+        telemetry.addData("Hood Pos", outtake.getHoodPos());
         telemetry.addLine();
         telemetry.addLine("----  Pinpoint Data  ----");
         telemetry.addData("Position", data);
-        telemetry.addData("Status", pinpoint.getDeviceStatus());
-        telemetry.addData("Pinpoint Frequency", pinpoint.getFrequency());
         telemetry.addData("Goal Pedro", "x=%.1f y=%.1f", TURRET_TARGET_POSE.getX(), TURRET_TARGET_POSE.getY());
-        telemetry.addData("Goal Odom",  "x=%.1f y=%.1f", goalX_odom(), goalY_odom());
-        telemetry.addData("Robot Odom", "x=%.1f y=%.1f", currentPose.getX(DistanceUnit.INCH), currentPose.getY(DistanceUnit.INCH));
+        telemetry.addData("Robot Odom", "x=%.1f y=%.1f", currentPose.getX(), currentPose.getY());
+        telemetry.addData("AbsoOdo Heading (deg)", odoHeading.getHeadingDeg());
+        telemetry.addData("AbsoOdo Heading (rad)", odoHeading.getHeadingRad());
         telemetry.addData("Follower Position:", followerData);
-        telemetry.addData("Hood pos", hoodPos);
         telemetry.addData("Shooter Predicted Vel",motorRPM);
+        telemetry.addData("Robot velocity", follower.getVelocity().getMagnitude());
         telemetry.addLine();
 
-        telemetry.update();
         TelemetryPacket pDash = new TelemetryPacket();
-        pDash.put("x", currentPose.getX(DistanceUnit.INCH));
-        pDash.put("y", currentPose.getY(DistanceUnit.INCH));
+        pDash.put("x", currentPose.getX());
+        pDash.put("y", currentPose.getY());
         pDash.put("turretServoPos", turret.getServoPos());
         dash.sendTelemetryPacket(pDash);
+        telemetry.update();
     }
 
-    private Pose2D driveFieldRelative(double forward, double right, double rotate) {
-        Pose2D pos = pinpoint.getPosition();  // Current position
+    private Pose driveFieldRelative(double forward, double right, double rotate) {
+        Pose pos = follower.getPose();  // Current position
         double robotAngle = 0;
 
         if (isBlue) {
-            robotAngle = Math.toRadians(pos.getHeading(AngleUnit.DEGREES) - 180);
+            robotAngle = (pos.getHeading() - Math.toRadians(180));
         } else {
-            robotAngle = Math.toRadians(pos.getHeading(AngleUnit.DEGREES));
+            robotAngle = pos.getHeading();
         }
 
         double theta = Math.atan2(forward, right);
@@ -417,107 +381,16 @@ public class MainTeleOp extends CommandOpMode {
         return pos;
     }
 
-    private void configurePinpoint() {
-        pinpoint.resetPosAndIMU();
-        pinpoint.setOffsets(145.12237, -145.12237, DistanceUnit.MM);
-        pinpoint.setEncoderResolution(GoBildaPinpointDriver.GoBildaOdometryPods.goBILDA_4_BAR_POD);
-
-        pinpoint.setEncoderDirections(
-                GoBildaPinpointDriver.EncoderDirection.REVERSED,
-                GoBildaPinpointDriver.EncoderDirection.FORWARD
-        );
-    }
-
-     public void updateCoordinatesWithAprilTag() {
-         limelight.limelight.updateRobotOrientation(pinpoint.getHeading(AngleUnit.RADIANS));
-         limelight.limelight.pipelineSwitch(0);
-         LLResult result = limelight.limelight.getLatestResult();
-         if (result != null && result.isValid()) {
-             Pose3D mt1Pose = result.getBotpose();
-             if (mt1Pose != null) {
-                 double finalX = (mt1Pose.getPosition().y * 39.37) + 72.0;
-                 double finalY = (-mt1Pose.getPosition().x * 39.37) + 72.0;
-                 pinpoint.setPosition(new Pose2D(DistanceUnit.INCH, finalX, finalY, AngleUnit.RADIANS, pinpoint.getHeading(AngleUnit.RADIANS)));
-             }
-         }
-     }
-
-     private static double wrap0to360(double deg) {
-         deg %= 360.0;
-         if (deg < 0) deg += 360.0;
-         return deg;
-     }
-
-     private void fuseXYFromLimelight(Pose2D odomPose) {
-         if (!VISION_FUSE_XY) { lastVisionReject = "disabled"; return; }
-
-         double now = System.nanoTime() * 1e-9;
-         double minPeriod = 1.0 / Math.max(0.1, VISION_RATE_HZ);
-         if (now - lastVisionUpdateS < minPeriod) { lastVisionReject = "rate"; return; }
-
-         // Must see the correct tag
-         if (!limelight.hasValidTarget()) { lastVisionReject = "noTag"; return; }
-
-         // Don’t trust when turret is near hard window edges (turret-mounted camera geometry/backlash)
-         double turretDeg = turret.getTurretRobotDegCmd(); // last commanded turret robot-relative angle
-         if (turretDeg <= ServoTurretTracker.TURRET_WINDOW_MIN_DEG + TURRET_WINDOW_EDGE_DEG) { lastVisionReject = "turretMin"; return; }
-         if (turretDeg >= ServoTurretTracker.TURRET_WINDOW_MAX_DEG - TURRET_WINDOW_EDGE_DEG) { lastVisionReject = "turretMax"; return; }
-
-         // Only fuse if tag is fairly centered in camera
-         double tx = limelight.getTx(); // degrees
-         if (Double.isNaN(tx) || Double.isInfinite(tx) || Math.abs(tx) > VISION_MAX_TX_DEG) { lastVisionReject = "txGate"; return; }
-
-         // Distance to tag (ground plane)
-         double dist = limelight.getDistanceToTagCenterInches(true);
-         if (!(dist > 0.0) || Double.isNaN(dist) || Double.isInfinite(dist)) { lastVisionReject = "distNaN"; return; }
-         if (dist < VISION_MIN_DIST_IN || dist > VISION_MAX_DIST_IN) { lastVisionReject = "distGate"; return; }
-
-         double tagX = goalX_odom();
-         double tagY = goalY_odom();
-
-         // FIELD bearing robot->tag:
-         // robotFieldHeadingDeg already includes alliance handling inside turret tracker.
-         double robotFieldHeadingDeg = turret.getRobotFieldHeadingDeg();
-         double bearingFieldDeg = wrap0to360(robotFieldHeadingDeg + turretDeg + tx);
-         double bearingRad = Math.toRadians(bearingFieldDeg);
-
-         // Robot position = tag position - dist * direction(robot->tag)
-         double visionX = tagX - dist * Math.cos(bearingRad);
-         double visionY = tagY - dist * Math.sin(bearingRad);
-
-         lastVisionX = visionX;
-         lastVisionY = visionY;
-
-         // Reject huge jumps vs odom
-         double ox = odomPose.getX(DistanceUnit.INCH);
-         double oy = odomPose.getY(DistanceUnit.INCH);
-         double dx = visionX - ox;
-         double dy = visionY - oy;
-         if (Math.hypot(dx, dy) > VISION_MAX_JUMP_IN) { lastVisionReject = "jump"; return; }
-
-         // Blend into odom (keep Pinpoint heading)
-         double fusedX = ox + VISION_ALPHA * dx;
-         double fusedY = oy + VISION_ALPHA * dy;
-         double h = odomPose.getHeading(AngleUnit.RADIANS);
-
-         pinpoint.setPosition(new Pose2D(DistanceUnit.INCH, fusedX, fusedY, AngleUnit.RADIANS, h));
-
-         lastVisionUpdateS = now;
-         lastVisionReject = "ok";
-     }
-
     private void beginRun(ShotOrderPlanner planner, ColourZoneDetection.Snapshot snap, StaticShooter shooter, Kickers kickers) {
         plan = planner.plan(CIPHER, snap, FORCE_SHOOT_ALL_ZONES);
         stepIdx = 0;
         kickers.resetZoneOne(); kickers.resetZoneTwo(); kickers.resetZoneThree();
-//        shooter.setTargetRPM(SHOOTER_TARGET_RPM);
         shooterReadyTimer.reset();
         state = RunState.SPINUP_WAIT;
     }
 
     private void abortNow(StaticShooter shooter, Kickers kickers) {
         kickers.resetZoneOne(); kickers.resetZoneTwo(); kickers.resetZoneThree();
-//        shooter.setTargetRPM(0.0);
         shooter.update();
         shooter.eStop();
         state = RunState.ABORTED;
@@ -525,9 +398,6 @@ public class MainTeleOp extends CommandOpMode {
     }
 
     private void runStateMachine(StaticShooter shooter, Kickers kickers) {
-        if (state != RunState.IDLE && state != RunState.DONE && state != RunState.ABORTED) {
-//            shooter.setTargetRPM(SHOOTER_TARGET_RPM);
-        }
         switch (state) {
             case SPINUP_WAIT:
                 if (plan == null || plan.isEmpty()) { state = RunState.DONE; return; }
@@ -563,20 +433,22 @@ public class MainTeleOp extends CommandOpMode {
                 break;
             case 2:
                 CIPHER = ShotOrderPlanner.Cipher.PGP;
+                break;
             case 3:
                 CIPHER = ShotOrderPlanner.Cipher.PPG;
                 x = 0;
+                break;
+
         }
     }
 
     private void finishRun(StaticShooter shooter, Kickers kickers) {
         kickers.resetZoneOne(); kickers.resetZoneTwo(); kickers.resetZoneThree();
-//        shooter.setTargetRPM(0.0);
         state = RunState.DONE;
     }
 
     private boolean isShooterReady(double rpm) {
-        return rpm >= (SHOOTER_TARGET_RPM - SHOOTER_READY_TOL_RPM) && rpm > 0.0;
+        return shooter.isAtTargetThreshold();
     }
 
     private static void kickZone(Kickers k, ColourZoneDetection.ZoneId zone) {
@@ -587,12 +459,12 @@ public class MainTeleOp extends CommandOpMode {
         }
     }
 
-    public void calculateHoodPos(double robotX, double robotY) {
+    public void calculateHoodPos(double robotX, double robotY, double robotHeading, Vector robotVelocity) {
         // Horizontal distance to goal
         double dx = GOAL_POS_RED.getX() - robotX;
         double dy = GOAL_POS_RED.getY() - robotY;
         double distanceToGoal = Math.hypot(dx, dy);
-        double angleToGoal = Math.atan(dy / dx);
+        double angleToGoal = Math.atan2(dy, dx);
         Vector robotToGoalVector = new Vector(distanceToGoal, angleToGoal);
 
         double g = 32.174 * 12;
@@ -605,5 +477,24 @@ public class MainTeleOp extends CommandOpMode {
         hoodAngle = MathFunctions.clamp(Math.atan(2 * y / x - Math.tan(a)), HOOD_MIN_ANGLE, HOOD_MAX_ANGLE);
 
         flywheelSpeed = Math.sqrt(g * x * x / (2 * Math.pow(Math.cos(hoodAngle), 2) * (x * Math.tan(hoodAngle) - y)));
+
+
+        //get robot velocity and convert it into parallel and perpendicular components
+        double coordinateTheta = robotVelocity.getTheta() - robotToGoalVector.getTheta();
+
+        double parallelComponent = -Math.cos(coordinateTheta) * robotVelocity.getMagnitude();
+        double perpendicularComponent = Math.sin(coordinateTheta) * robotVelocity.getMagnitude();
+
+        //velocity compensation variables
+        double vz = flywheelSpeed * Math.sin(hoodAngle);
+        double time = x / (flywheelSpeed * Math.cos(hoodAngle));
+        double ivr = x / time + parallelComponent;
+        double nvr = Math.sqrt(ivr * ivr + perpendicularComponent * perpendicularComponent);
+        double ndr = nvr * time;
+
+        //recalculuate launch components
+        hoodAngle = MathFunctions.clamp(Math.atan(vz / nvr), HOOD_MIN_ANGLE, HOOD_MAX_ANGLE);
+
+        flywheelSpeed = Math.sqrt(g * ndr * ndr / (2 * Math.pow(Math.cos(hoodAngle), 2) * (ndr * Math.tan(hoodAngle) - y)));
     }
 }

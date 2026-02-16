@@ -25,7 +25,6 @@ import org.firstinspires.ftc.teamcode.subsystems.shooter.ServoTurretTracker;
 import org.firstinspires.ftc.teamcode.subsystems.shooter.StaticShooter;
 import org.firstinspires.ftc.teamcode.subsystems.transfer.ColourZoneDetection;
 import org.firstinspires.ftc.teamcode.subsystems.transfer.Kickers;
-import org.firstinspires.ftc.teamcode.subsystems.vision.WebcamAprilTag;
 import org.firstinspires.ftc.teamcode.support.AlliancePresets;
 import org.firstinspires.ftc.teamcode.support.BeamBreakHelper;
 
@@ -37,7 +36,7 @@ import java.util.List;
 @Autonomous(name = "Red Side Auto Close 6", group = "Red Autos", preselectTeleOp = "MainTeleOp")
 public class RedSideAutoClose9 extends OpMode {
     // ===================== GOAL / AUTO AIM =====================
-    public static Pose TURRET_TARGET_POSE = new Pose(140, 136);   // field inches
+    public static Pose TURRET_TARGET_POSE = new Pose(136, 136);   // field inches
     public static double TURRET_TRIM_DEG = 0.0;                   // optional trim
 
     // ===================== AUTO-SORT / INDEXING =====================
@@ -60,7 +59,6 @@ public class RedSideAutoClose9 extends OpMode {
     public static double RESET_DOWN_TIME_S = 0.12;
     public static double BETWEEN_SHOTS_PAUSE_S = 0.15;
 
-    private WebcamAprilTag cypherCam;
     private CypherAprilTagTracker cypherTracker;
     private int cypherId = -1;
     private BeamBreakHelper outtakeBeamBreak;
@@ -119,17 +117,17 @@ public class RedSideAutoClose9 extends OpMode {
         line1 = follower
                 .pathBuilder()
                 .addPath(
-                        new BezierLine(new Pose(110.500, 135.500), new Pose(82.000, 100.000))
+                        new BezierLine(new Pose(110.500, 135.500), new Pose(100.000, 100.000)) //82 100
                 )
                 .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(30))
                 .build();
-        line67 = follower
-                .pathBuilder()
-                .addPath(
-                        new BezierLine(new Pose(82.00, 100.00), new Pose(100.000, 100.000))
-                )
-                .setLinearHeadingInterpolation(Math.toRadians(30), Math.toRadians(0))
-                .build();
+//        line67 = follower
+//                .pathBuilder()
+//                .addPath(
+//                        new BezierLine(new Pose(82.00, 100.00), new Pose(100.000, 100.000))
+//                )
+//                .setLinearHeadingInterpolation(Math.toRadians(30), Math.toRadians(0))
+//                .build();
 
         line2 = follower
                 .pathBuilder()
@@ -202,11 +200,9 @@ public class RedSideAutoClose9 extends OpMode {
 
         AlliancePresets.setAllianceShooterTag(AlliancePresets.Alliance.RED.getTagId());
 
-        // Start webcam + pipeline
-        cypherCam = new WebcamAprilTag(hardwareMap, "Webcam 1");
+        // Start webcam + pipelin
 
         // Tracker remembers last seen 21/22/23 and writes AlliancePresets.currentCypher
-        cypherTracker = new CypherAprilTagTracker(cypherCam);
 
         shooter = new StaticShooter(hardwareMap, telemetry);
         shooter.setTargetRPM(0);
@@ -222,7 +218,9 @@ public class RedSideAutoClose9 extends OpMode {
         follower = Constants.createFollower(hardwareMap);
         follower.setStartingPose(startPose);
 
-        czd = new ColourZoneDetection(hardwareMap, "srsHubIndexer", "srsHubPlate");
+        czd = new ColourZoneDetection(hardwareMap,
+                "z1CSa", "z2CSa", "z3CSa",
+                "z1CSb", "z2CSb", "z3CSb");
         planner = new ShotOrderPlanner();
 
         turret = new ServoTurretTracker(hardwareMap, "turret");
@@ -256,9 +254,6 @@ public class RedSideAutoClose9 extends OpMode {
         }
 
         // Keep cypher tag detection during init
-        if (cypherCam != null) {
-            cypherCam.detectDuringInit();
-        }
         if (cypherTracker != null) {
             cypherId = cypherTracker.update();
             if (cypherId == 21) CIPHER = ShotOrderPlanner.Cipher.GPP;
@@ -329,22 +324,9 @@ public class RedSideAutoClose9 extends OpMode {
             hub.clearBulkCache();
         }
 
-        if (!cipherLocked && cypherCam != null) {
-            cypherCam.detectDuringInit();
-            int id = cypherCam.getDetectedTag();
-            if (id == 21 || id == 22 || id == 23) {
-                cypherId = id;
-                if (cypherId == 21) CIPHER = ShotOrderPlanner.Cipher.GPP;
-                else if (cypherId == 22) CIPHER = ShotOrderPlanner.Cipher.PGP;
-                else CIPHER = ShotOrderPlanner.Cipher.PPG;
-                cipherLocked = true;
-            }
-        }
-
         telemetry.addLine("=== INIT PREVIEW ===");
         telemetry.addData("Cypher Tag", cypherId);
         telemetry.addData("Cipher", CIPHER);
-        telemetry.addData("Tag detections", cypherCam.getDetectionCount());
         telemetry.addData("Tag id", cypherId);
 
         follower.update();
@@ -404,8 +386,6 @@ public class RedSideAutoClose9 extends OpMode {
         if (outtakeThread != null) {
             outtakeThread.interrupt();
         }
-
-        cypherCam.stopCamera();
     }
 
     private void setPathState(int newState) {
@@ -427,16 +407,16 @@ public class RedSideAutoClose9 extends OpMode {
                 if (!follower.isBusy()) {
                     follower.setMaxPower(1);
                     follower.followPath(line1);
-                    setPathState(-1);
-                }
-                break;
-            case -1:
-                if (!follower.isBusy()) {
-                    follower.setMaxPower(1);
-                    follower.followPath(line67);
                     setPathState(1);
                 }
                 break;
+//            case -1:
+//                if (!follower.isBusy()) {
+//                    follower.setMaxPower(1);
+//                    follower.followPath(line67);
+//                    setPathState(1);
+//                }
+//                break;
 
             case 1:
                 if (!follower.isBusy()) {
@@ -473,19 +453,20 @@ public class RedSideAutoClose9 extends OpMode {
                 // Go back to shoot position
                 if (!follower.isBusy()) {
                     follower.followPath(line4);
-                    stopIntake();
                     setPathState(5);
                 }
                 break;
 
             case 5:
                 if (!follower.isBusy()) {
+                    outtake();
                     if (shooter.isAtTargetThreshold()) {
                         BeginShotSequenceIfIdle();
                         runStateMachine(shooter, kickers);
                     }
 
                     if (beamRunComplete() || state == RunState.DONE || pathTimer.getElapsedTimeSeconds() > 6.0) {
+                        intake();
                         setPathState(6);
                     }
                 }
@@ -516,12 +497,14 @@ public class RedSideAutoClose9 extends OpMode {
 
             case 9:
                 if (!follower.isBusy()) {
+                    outtake();
                     if (shooter.isAtTargetThreshold()) {
                         BeginShotSequenceIfIdle();
                         runStateMachine(shooter, kickers);
                     }
 
                     if (beamRunComplete() || state == RunState.DONE || pathTimer.getElapsedTimeSeconds() > 6.0) {
+                        intake();
                         setPathState(99);
                     }
                 }
@@ -536,7 +519,14 @@ public class RedSideAutoClose9 extends OpMode {
 
             case 100:
                 if (!follower.isBusy()) {
-                    AlliancePresets.setCurrentPose(new Pose2D(DistanceUnit.INCH, follower.getPose().getX(), follower.getPose().getY(), AngleUnit.RADIANS, follower.getHeading()));
+                    AlliancePresets.setCurrentPose2D(new Pose2D(
+                            DistanceUnit.INCH,
+                            follower.getPose().getX(),
+                            follower.getPose().getY(),
+                            AngleUnit.RADIANS,
+                            follower.getHeading()
+                    ));
+                    AlliancePresets.setCurrentPose(follower.getPose());
                     RPM_MAX = 0;
                     shooter.eStop();
                     follower.breakFollowing();
@@ -688,6 +678,10 @@ public class RedSideAutoClose9 extends OpMode {
 
     private void intake() {
         intake.intakeEhub(1);
+    }
+
+    private void outtake() {
+        intake.intakeEhub(-1);
     }
 
     private void stopIntake() {

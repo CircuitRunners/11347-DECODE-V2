@@ -39,11 +39,12 @@ dependencies {
     implementation project(':FtcRobotController')
 
     annotationProcessor files('lib/OpModeAnnotationProcessor.jar')
-    implementation 'com.fasterxml.jackson.core:jackson-databind:2.20.1'
+    implementation 'com.fasterxml.jackson.core:jackson-databind:2.21.0'
     implementation 'org.ftclib.ftclib:core:2.1.1'
     implementation "org.apache.commons:commons-math3:3.6.1"
 
     // Vision stuff
+    //noinspection Aligned16KB
     implementation 'org.openftc:easyopencv:1.7.3'
 
     // Roadrunner/Command stuff

@@ -7,6 +7,7 @@ import com.qualcomm.robotcore.hardware.HardwareMap;
 import com.qualcomm.robotcore.util.Range;
 import com.arcrobotics.ftclib.controller.PIDFController;
 
+@Deprecated
 public class AxonAnalogClosedLoop extends SubsystemBase {
     private final CRServo servo;
     private final AnalogInput absEncoder;

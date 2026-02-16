@@ -37,7 +37,8 @@ public class AlliancePresets {
     }
 
     public static int allianceShooterTag, currentCypher;
-    public static Pose2D globalPose;
+    public static Pose2D globalPose2D;
+    public static Pose globalPose;
 
     public static int getAllianceShooterTag() {
         return allianceShooterTag;
@@ -55,11 +56,19 @@ public class AlliancePresets {
         currentCypher = cypher;
     }
 
-    public static void setCurrentPose(Pose2D currentPose) {
+    public static void setCurrentPose2D(Pose2D currentPose) {
+        globalPose2D = currentPose;
+    }
+
+    public static Pose2D getGlobalPose2D() {
+        return globalPose2D;
+    }
+
+    public static void setCurrentPose(Pose currentPose) {
         globalPose = currentPose;
     }
 
-    public static Pose2D getGlobalPose() {
+    public static Pose getGlobalPose() {
         return globalPose;
     }
 }

@@ -197,7 +197,9 @@ public class RedSideAutoFar6 extends OpMode {
         follower = Constants.createFollower(hardwareMap);
         follower.setStartingPose(startPose);
 
-        czd = new ColourZoneDetection(hardwareMap, "srsHubIndexer", "srsHubPlate");
+        czd = new ColourZoneDetection(hardwareMap,
+                "z1CSa", "z2CSa", "z3CSa",
+                "z1CSb", "z2CSb", "z3CSb");
         planner = new ShotOrderPlanner();
 
         turret = new ServoTurretTracker(hardwareMap, "turret");
@@ -455,8 +457,17 @@ public class RedSideAutoFar6 extends OpMode {
 
             case 9:
                 if (!follower.isBusy()) {
+                    AlliancePresets.setCurrentPose2D(new Pose2D(
+                            DistanceUnit.INCH,
+                            follower.getPose().getX(),
+                            follower.getPose().getY(),
+                            AngleUnit.RADIANS,
+                            follower.getHeading()
+                    ));
+                    AlliancePresets.setCurrentPose(follower.getPose());
+                    RPM_MAX = 0;
                     shooter.eStop();
-                    follower.pausePathFollowing();
+                    follower.breakFollowing();
                 }
                 break;
         }

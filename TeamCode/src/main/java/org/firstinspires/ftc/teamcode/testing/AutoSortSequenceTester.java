@@ -71,7 +71,9 @@ public class AutoSortSequenceTester extends LinearOpMode {
         FtcDashboard dash = FtcDashboard.getInstance();
         dash.setTelemetryTransmissionInterval(25);
 
-        ColourZoneDetection czd = new ColourZoneDetection(hardwareMap, HUB_NAME_A, HUB_NAME_B);
+        ColourZoneDetection czd = new ColourZoneDetection(hardwareMap,
+                "z1CSa", "z2CSa", "z3CSa",
+                "z1CSb", "z2CSb", "z3CSb");
         ShotOrderPlanner planner = new ShotOrderPlanner();
 
         StaticShooter shooter = new StaticShooter(hardwareMap, telemetry);

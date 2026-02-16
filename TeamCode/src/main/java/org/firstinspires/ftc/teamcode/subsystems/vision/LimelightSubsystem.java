@@ -32,6 +32,11 @@ public class LimelightSubsystem extends SubsystemBase {
         latestResult = limelight.getLatestResult();
     }
 
+    @Override
+    public void periodic() {
+        update();
+    }
+
     public boolean hasValidTarget() {
         if (latestResult == null || !latestResult.isValid()) return false;
         for (LLResultTypes.FiducialResult fr : latestResult.getFiducialResults()) {

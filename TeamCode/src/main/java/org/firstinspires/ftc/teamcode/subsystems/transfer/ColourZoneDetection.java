@@ -3,9 +3,9 @@ package org.firstinspires.ftc.teamcode.subsystems.transfer;
 import com.acmerobotics.dashboard.config.Config;
 import com.arcrobotics.ftclib.command.SubsystemBase;
 import com.qualcomm.robotcore.hardware.HardwareMap;
+import com.qualcomm.robotcore.hardware.NormalizedColorSensor;
+import com.qualcomm.robotcore.hardware.NormalizedRGBA;
 import com.qualcomm.robotcore.util.ElapsedTime;
-
-import org.firstinspires.ftc.teamcode.support.SRSHub;
 
 @Config
 public class ColourZoneDetection extends SubsystemBase {
@@ -13,78 +13,89 @@ public class ColourZoneDetection extends SubsystemBase {
     public enum BallColor { PURPLE, GREEN, NONE }
     public enum ZoneId { Z1, Z2, Z3 }
 
+    /** Per-sensor raw state */
     public static class SensorState {
-        public final int r, g, b;
-        public final short prox;
+        public final String cls;        // actual runtime class name
+        public final float r, g, b, a;  // normalized
+        public final float sum;         // r+g+b
+        public final int strength;      // scaled strength used for tie-break
         public final boolean present;
         public final BallColor color;
 
-        public SensorState(int r, int g, int b, short prox, boolean present, BallColor color) {
-            this.r = r; this.g = g; this.b = b; this.prox = prox; this.present = present; this.color = color;
+        public SensorState(String cls, float r, float g, float b, float a,
+                           float sum, int strength, boolean present, BallColor color) {
+            this.cls = cls;
+            this.r = r; this.g = g; this.b = b; this.a = a;
+            this.sum = sum;
+            this.strength = strength;
+            this.present = present;
+            this.color = color;
         }
     }
 
+    /** Zone-combined result (chosen “best” sensor when 2 exist). */
     public static class ZoneState {
         public final ZoneId zone;
         public final boolean hasBall;
         public final BallColor color;
 
-        // debug (chosen sensor that drove decision)
-        public final int r, g, b;
-        public final short prox;
+        // debug: chosen sensor’s raw values
+        public final String cls;
+        public final float r, g, b, a;
+        public final float sum;
+        public final int strength;
 
-        public ZoneState(ZoneId zone, boolean hasBall, BallColor color, int r, int g, int b, short prox) {
+        public ZoneState(ZoneId zone, boolean hasBall, BallColor color,
+                         String cls, float r, float g, float b, float a, float sum, int strength) {
             this.zone = zone;
             this.hasBall = hasBall;
             this.color = color;
-            this.r = r;
-            this.g = g;
-            this.b = b;
-            this.prox = prox;
+            this.cls = cls;
+            this.r = r; this.g = g; this.b = b; this.a = a;
+            this.sum = sum;
+            this.strength = strength;
         }
     }
 
     public static class Snapshot {
         public final ZoneState z1, z2, z3;
-        public Snapshot(ZoneState z1, ZoneState z2, ZoneState z3) { this.z1 = z1; this.z2 = z2; this.z3 = z3; }
+        public Snapshot(ZoneState z1, ZoneState z2, ZoneState z3) {
+            this.z1 = z1; this.z2 = z2; this.z3 = z3;
+        }
     }
 
-    // ======== Tunables ========
-    public static int PROX_MIN_Z1 = 120;
-    public static int PROX_MIN_Z2 = 120;
-    public static int PROX_MIN_Z3 = 120;
+    // ===================== Tunables =====================
+    public static float PRESENT_MIN_A_Z1 = 0.02f;
+    public static float PRESENT_MIN_A_Z2 = 0.02f;
+    public static float PRESENT_MIN_A_Z3 = 0.02f;
+
+    public static float PRESENT_MIN_SUM_Z1 = 0.02f;
+    public static float PRESENT_MIN_SUM_Z2 = 0.02f;
+    public static float PRESENT_MIN_SUM_Z3 = 0.02f;
 
     public static int DEBOUNCE_MS = 120;
 
-    public static int GREEN_MARGIN = 60;
+    // Prefer ratio-based tests (more robust across different sensors / gains)
+    public static float GREEN_RATIO_MIN = 1.35f;   // g must be >= max(r,b) * this
+    public static float PURPLE_RB_RATIO_MIN = 1.15f; // (r+b) must be >= g * this
+    public static float PURPLE_BLUE_SHARE_MIN = 0.28f; // b/sum minimum (tune)
+    public static float BRIGHTNESS_MIN_WHEN_PRESENT = 0.02f; // sum gate for classification
 
-    public static int PURPLE_GB_MIN = 260;
-    public static int PURPLE_BLUE_MIN = 80;
-    public static int PURPLE_R_MULT_NUM = 13;
-    public static int PURPLE_R_MULT_DEN = 10;
+    // Strength scaling (tie-breaker only)
+    public static float STRENGTH_SCALE = 1000.0f;
 
-    public static int RGB_SUM_MIN_WHEN_PRESENT = 120;
+    // Optional: set gain on all sensors (can help a lot)
+    public static float SENSOR_GAIN = 2.0f;
+    public static boolean SET_GAIN_EACH_LOOP = false;
 
-    // ======== SRSHubs ========
-    private final SRSHub hubA;
-    private final SRSHub hubB;
+    // ===================== Hardware =====================
+    private final NormalizedColorSensor z1aC, z2aC, z3aC;
+    private final NormalizedColorSensor z1bC, z2bC, z3bC;
 
-    // One sensor per bus per hub. (A = hubA, B = hubB)
-    private SRSHub.APDS9151 z1a, z2a, z3a;
-    private SRSHub.APDS9151 z1b, z2b, z3b;
-
-    private final ElapsedTime runtime = new ElapsedTime();
     private final ElapsedTime clock = new ElapsedTime();
 
-    // RAW combined zone state
-    private Snapshot raw = new Snapshot(
-            new ZoneState(ZoneId.Z1, false, BallColor.NONE, 0, 0, 0, (short) 0),
-            new ZoneState(ZoneId.Z2, false, BallColor.NONE, 0, 0, 0, (short) 0),
-            new ZoneState(ZoneId.Z3, false, BallColor.NONE, 0, 0, 0, (short) 0)
-    );
-
-    // STABLE combined zone state
-    private Snapshot stable = raw;
+    private Snapshot raw;
+    private Snapshot stable;
 
     private final Candidate c1 = new Candidate();
     private final Candidate c2 = new Candidate();
@@ -96,75 +107,58 @@ public class ColourZoneDetection extends SubsystemBase {
         long sinceMs;
         boolean active;
         void set(boolean hasBall, BallColor color, long nowMs) {
-            this.hasBall = hasBall; this.color = color; this.sinceMs = nowMs; this.active = true;
+            this.hasBall = hasBall;
+            this.color = color;
+            this.sinceMs = nowMs;
+            this.active = true;
         }
     }
 
-    /**
-     * @param hardwareMap hardware map
-     * @param hubNameA RC config name for hub A
-     * @param hubNameB RC config name for hub B
-     */
-    public ColourZoneDetection(HardwareMap hardwareMap, String hubNameA, String hubNameB) {
-        SRSHub.Config cfgA = new SRSHub.Config();
-        cfgA.addI2CDevice(1, new SRSHub.APDS9151());
-        cfgA.addI2CDevice(2, new SRSHub.APDS9151());
-        cfgA.addI2CDevice(3, new SRSHub.APDS9151());
+    public ColourZoneDetection(HardwareMap hw,
+                               String z1aName, String z2aName, String z3aName,
+                               String z1bName, String z2bName, String z3bName) {
 
-        SRSHub.Config cfgB = new SRSHub.Config();
-        cfgB.addI2CDevice(1, new SRSHub.APDS9151());
-        cfgB.addI2CDevice(2, new SRSHub.APDS9151());
-        cfgB.addI2CDevice(3, new SRSHub.APDS9151());
+        z1aC = hw.get(NormalizedColorSensor.class, z1aName);
+        z2aC = hw.get(NormalizedColorSensor.class, z2aName);
+        z3aC = hw.get(NormalizedColorSensor.class, z3aName);
 
-        hubA = hardwareMap.get(SRSHub.class, hubNameA);
-        hubB = hardwareMap.get(SRSHub.class, hubNameB);
+        z1bC = hw.get(NormalizedColorSensor.class, z1bName);
+        z2bC = hw.get(NormalizedColorSensor.class, z2bName);
+        z3bC = hw.get(NormalizedColorSensor.class, z3bName);
 
-        hubA.init(cfgA);
-        hubB.init(cfgB);
+        // One-time gain set (safe for both V3 + Color/Range)
+        safeSetGain(z1aC); safeSetGain(z2aC); safeSetGain(z3aC);
+        safeSetGain(z1bC); safeSetGain(z2bC); safeSetGain(z3bC);
 
-        waitForBothReady(5.0);
-
-        z1a = hubA.getI2CDevice(1, SRSHub.APDS9151.class);
-        z2a = hubA.getI2CDevice(2, SRSHub.APDS9151.class);
-        z3a = hubA.getI2CDevice(3, SRSHub.APDS9151.class);
-
-        z1b = hubB.getI2CDevice(1, SRSHub.APDS9151.class);
-        z2b = hubB.getI2CDevice(2, SRSHub.APDS9151.class);
-        z3b = hubB.getI2CDevice(3, SRSHub.APDS9151.class);
+        // init snapshots
+        raw = new Snapshot(
+                emptyZone(ZoneId.Z1),
+                emptyZone(ZoneId.Z2),
+                emptyZone(ZoneId.Z3)
+        );
+        stable = raw;
 
         clock.reset();
     }
 
-    private void waitForBothReady(double timeoutSeconds) {
-        runtime.reset();
-        while (!(hubA.ready() && hubB.ready()) && runtime.seconds() < timeoutSeconds) {
-            Thread.yield();
-        }
+    @Override
+    public void periodic() {
+        update();
     }
 
-    public boolean hubAReady() { return hubA != null && hubA.ready(); }
-    public boolean hubBReady() { return hubB != null && hubB.ready(); }
-    public boolean hubADisconnected() { return hubA == null || hubA.disconnected(); }
-    public boolean hubBDisconnected() { return hubB == null || hubB.disconnected(); }
-
-    /** Call once per loop */
+    /** Call once per loop. */
     public void update() {
-//        if (hubA == null || hubB == null) return;
-//        if (hubA.disconnected() || hubB.disconnected()) return;
-
-        if (!hubADisconnected()) {
-            hubA.update();
-        }
-        if (!hubBDisconnected()) {
-            hubB.update();
+        if (SET_GAIN_EACH_LOOP) {
+            safeSetGain(z1aC); safeSetGain(z2aC); safeSetGain(z3aC);
+            safeSetGain(z1bC); safeSetGain(z2bC); safeSetGain(z3bC);
         }
 
         long nowMs = (long) clock.milliseconds();
 
         raw = new Snapshot(
-                computeZoneNow(ZoneId.Z1, z1a, z1b, PROX_MIN_Z1),
-                computeZoneNow(ZoneId.Z2, z2a, z2b, PROX_MIN_Z2),
-                computeZoneNow(ZoneId.Z3, z3a, z3b, PROX_MIN_Z3)
+                computeZoneNow(ZoneId.Z1, z1aC, z1bC, PRESENT_MIN_A_Z1, PRESENT_MIN_SUM_Z1),
+                computeZoneNow(ZoneId.Z2, z2aC, z2bC, PRESENT_MIN_A_Z2, PRESENT_MIN_SUM_Z2),
+                computeZoneNow(ZoneId.Z3, z3aC, z3bC, PRESENT_MIN_A_Z3, PRESENT_MIN_SUM_Z3)
         );
 
         stable = new Snapshot(
@@ -174,32 +168,16 @@ public class ColourZoneDetection extends SubsystemBase {
         );
     }
 
-    public Snapshot getRawSnapshot() {
-        return raw;
-    }
-    public Snapshot getStableSnapshot() {
-        return stable;
-    }
+    public Snapshot getRawSnapshot() { return raw; }
+    public Snapshot getStableSnapshot() { return stable; }
 
-    // Expose individual sensor states for telemetry
-    public SensorState getZ1A() {
-        return evalSensor(z1a, PROX_MIN_Z1);
-    }
-    public SensorState getZ1B() {
-        return evalSensor(z1b, PROX_MIN_Z1);
-    }
-    public SensorState getZ2A() {
-        return evalSensor(z2a, PROX_MIN_Z2);
-    }
-    public SensorState getZ2B() {
-        return evalSensor(z2b, PROX_MIN_Z2);
-    }
-    public SensorState getZ3A() {
-        return evalSensor(z3a, PROX_MIN_Z3);
-    }
-    public SensorState getZ3B() {
-        return evalSensor(z3b, PROX_MIN_Z3);
-    }
+    // Raw per-sensor accessors
+    public SensorState getZ1A() { return evalSensor(z1aC, PRESENT_MIN_A_Z1, PRESENT_MIN_SUM_Z1); }
+    public SensorState getZ1B() { return evalSensor(z1bC, PRESENT_MIN_A_Z1, PRESENT_MIN_SUM_Z1); }
+    public SensorState getZ2A() { return evalSensor(z2aC, PRESENT_MIN_A_Z2, PRESENT_MIN_SUM_Z2); }
+    public SensorState getZ2B() { return evalSensor(z2bC, PRESENT_MIN_A_Z2, PRESENT_MIN_SUM_Z2); }
+    public SensorState getZ3A() { return evalSensor(z3aC, PRESENT_MIN_A_Z3, PRESENT_MIN_SUM_Z3); }
+    public SensorState getZ3B() { return evalSensor(z3bC, PRESENT_MIN_A_Z3, PRESENT_MIN_SUM_Z3); }
 
     private ZoneState debounce(ZoneState computed, Candidate cand, ZoneState stableState, long nowMs) {
         boolean same = computed.hasBall == stableState.hasBall && computed.color == stableState.color;
@@ -215,90 +193,97 @@ public class ColourZoneDetection extends SubsystemBase {
         return stableState;
     }
 
-    private static class Eval {
-        final SensorState ss;
-        final int strength;
-        Eval(SensorState ss, int strength) { this.ss = ss; this.strength = strength; }
+    private ZoneState computeZoneNow(ZoneId zone,
+                                     NormalizedColorSensor aC,
+                                     NormalizedColorSensor bC,
+                                     float presentMinA,
+                                     float presentMinSum) {
+
+        SensorState a = evalSensor(aC, presentMinA, presentMinSum);
+        SensorState b = evalSensor(bC, presentMinA, presentMinSum);
+
+        if (!a.present && !b.present) return emptyZone(zone);
+
+        if (a.present && !b.present) return zoneFromSensor(zone, a);
+        if (!a.present && b.present) return zoneFromSensor(zone, b);
+
+        // both present: prefer matching color; otherwise prefer stronger; otherwise prefer non-NONE
+        if (a.color == b.color) {
+            return zoneFromSensor(zone, (a.strength >= b.strength) ? a : b, a.color);
+        }
+
+        if (a.color == BallColor.NONE && b.color != BallColor.NONE) return zoneFromSensor(zone, b);
+        if (b.color == BallColor.NONE && a.color != BallColor.NONE) return zoneFromSensor(zone, a);
+
+        return zoneFromSensor(zone, (a.strength >= b.strength) ? a : b);
     }
 
-    private ZoneState computeZoneNow(ZoneId zone, SRSHub.APDS9151 sA, SRSHub.APDS9151 sB, int proxMin) {
-        Eval a = evalWithStrength(sA, proxMin);
-        Eval b = evalWithStrength(sB, proxMin);
-
-        // neither sees ball
-        if (!a.ss.present && !b.ss.present) {
-            return new ZoneState(zone, false, BallColor.NONE, 0, 0, 0, (short) 0);
-        }
-
-        // one sees ball
-        if (a.ss.present && !b.ss.present) {
-            return new ZoneState(zone, true, a.ss.color, a.ss.r, a.ss.g, a.ss.b, a.ss.prox);
-        }
-        if (!a.ss.present && b.ss.present) {
-            return new ZoneState(zone, true, b.ss.color, b.ss.r, b.ss.g, b.ss.b, b.ss.prox);
-        }
-
-        // both see ball: should match; if mismatch, pick stronger (or non-NONE)
-        if (a.ss.color == b.ss.color) {
-            Eval pick = (a.strength >= b.strength) ? a : b;
-            return new ZoneState(zone, true, a.ss.color, pick.ss.r, pick.ss.g, pick.ss.b, pick.ss.prox);
-        }
-
-        if (a.ss.color == BallColor.NONE && b.ss.color != BallColor.NONE) {
-            return new ZoneState(zone, true, b.ss.color, b.ss.r, b.ss.g, b.ss.b, b.ss.prox);
-        }
-        if (b.ss.color == BallColor.NONE && a.ss.color != BallColor.NONE) {
-            return new ZoneState(zone, true, a.ss.color, a.ss.r, a.ss.g, a.ss.b, a.ss.prox);
-        }
-
-        Eval pick = (a.strength >= b.strength) ? a : b;
-        return new ZoneState(zone, true, pick.ss.color, pick.ss.r, pick.ss.g, pick.ss.b, pick.ss.prox);
+    private static ZoneState emptyZone(ZoneId zone) {
+        return new ZoneState(zone, false, BallColor.NONE, "none",
+                0, 0, 0, 0, 0, 0);
     }
 
-    private SensorState evalSensor(SRSHub.APDS9151 s, int proxMin) {
-        return evalWithStrength(s, proxMin).ss;
+    private static ZoneState zoneFromSensor(ZoneId zone, SensorState s) {
+        return new ZoneState(zone, true, s.color, s.cls, s.r, s.g, s.b, s.a, s.sum, s.strength);
     }
 
-    private Eval evalWithStrength(SRSHub.APDS9151 s, int proxMin) {
-        if (s == null || s.disconnected) {
-            SensorState ss = new SensorState(0, 0, 0, (short) 0, false, BallColor.NONE);
-            return new Eval(ss, 0);
+    private static ZoneState zoneFromSensor(ZoneId zone, SensorState s, BallColor forced) {
+        return new ZoneState(zone, true, forced, s.cls, s.r, s.g, s.b, s.a, s.sum, s.strength);
+    }
+
+    private SensorState evalSensor(NormalizedColorSensor c, float presentMinA, float presentMinSum) {
+        if (c == null) {
+            return new SensorState("null", 0,0,0,0, 0, 0, false, BallColor.NONE);
         }
 
-        int r = s.red, g = s.green, b = s.blue;
-        short p = s.proximity;
+        NormalizedRGBA rgba = c.getNormalizedColors();
+        float r = rgba.red;
+        float g = rgba.green;
+        float b = rgba.blue;
+        float a = rgba.alpha;
+        float sum = r + g + b;
 
-        boolean present = (p & 0xFFFF) >= proxMin;
-        BallColor c = classify(present, r, g, b);
+        boolean present = (a >= presentMinA) && (sum >= presentMinSum);
 
-        SensorState ss = new SensorState(r, g, b, p, present, c);
-        int strength = (p & 0xFFFF) + (r + g + b);
-        return new Eval(ss, strength);
+        BallColor color = classify(present, r, g, b, sum);
+
+        int strength = (int) (STRENGTH_SCALE * (a + sum));
+
+        return new SensorState(c.getClass().getSimpleName(), r, g, b, a, sum, strength, present, color);
     }
 
-    private BallColor classify(boolean present, int r, int g, int b) {
+    private BallColor classify(boolean present, float r, float g, float b, float sum) {
         if (!present) return BallColor.NONE;
+        if (sum < BRIGHTNESS_MIN_WHEN_PRESENT) return BallColor.NONE;
 
-        int sum = r + g + b;
-        if (sum < RGB_SUM_MIN_WHEN_PRESENT) return BallColor.NONE;
+        float maxRB = Math.max(r, b);
+        if (g >= maxRB * GREEN_RATIO_MIN) return BallColor.GREEN;
 
-        if (g > r + GREEN_MARGIN && g > b + GREEN_MARGIN) return BallColor.GREEN;
+        // “purple” tends to be high in (r+b) relative to g, and b should be a decent share of sum
+        float rb = r + b;
+        float blueShare = (sum > 1e-6f) ? (b / sum) : 0.0f;
 
-        int gb = g + b;
-        boolean gbStrong = gb >= PURPLE_GB_MIN;
-        boolean bluePresent = b >= PURPLE_BLUE_MIN;
-        boolean dominatesR = (gb * PURPLE_R_MULT_DEN) > (r * PURPLE_R_MULT_NUM);
-
-        if (gbStrong && bluePresent && dominatesR) return BallColor.PURPLE;
+        if (rb >= g * PURPLE_RB_RATIO_MIN && blueShare >= PURPLE_BLUE_SHARE_MIN) {
+            return BallColor.PURPLE;
+        }
 
         return BallColor.NONE;
+    }
+
+    private static void safeSetGain(NormalizedColorSensor s) {
+        if (s == null) return;
+        try {
+            s.setGain(SENSOR_GAIN);
+        } catch (Exception ignored) {
+            // some implementations may not support gain; ignore safely
+        }
     }
 
     public static int colorToInt(BallColor c) {
         switch (c) {
             case PURPLE: return 1;
-            case GREEN: return 2;
-            default: return 0;
+            case GREEN:  return 2;
+            default:     return 0;
         }
     }
 }

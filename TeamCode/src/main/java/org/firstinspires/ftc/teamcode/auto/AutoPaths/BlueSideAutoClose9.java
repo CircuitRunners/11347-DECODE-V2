@@ -60,8 +60,6 @@ public class BlueSideAutoClose9 extends OpMode {
     public static double RESET_DOWN_TIME_S = 0.12;
     public static double BETWEEN_SHOTS_PAUSE_S = 0.15;
 
-    private WebcamAprilTag cypherCam;
-    private CypherAprilTagTracker cypherTracker;
     private int cypherId = -1;
     private BeamBreakHelper outtakeBeamBreak;
     private Thread outtakeThread;
@@ -202,10 +200,9 @@ public class BlueSideAutoClose9 extends OpMode {
         AlliancePresets.setAllianceShooterTag(AlliancePresets.Alliance.BLUE.getTagId());
 
         // Start webcam + pipeline
-        cypherCam = new WebcamAprilTag(hardwareMap, "Webcam 1");
 
         // Tracker remembers last seen 21/22/23 and writes AlliancePresets.currentCypher
-        cypherTracker = new CypherAprilTagTracker(cypherCam);
+       
 
         shooter = new StaticShooter(hardwareMap, telemetry);
         shooter.setTargetRPM(0);
@@ -221,9 +218,10 @@ public class BlueSideAutoClose9 extends OpMode {
         follower = Constants.createFollower(hardwareMap);
         follower.setStartingPose(startPose);
 
-        czd = new ColourZoneDetection(hardwareMap, "srsHubIndexer", "srsHubPlate");
+        czd = new ColourZoneDetection(hardwareMap,
+                "z1CSa", "z2CSa", "z3CSa",
+                "z1CSb", "z2CSb", "z3CSb");
         planner = new ShotOrderPlanner();
-
         turret = new ServoTurretTracker(hardwareMap, "turret");
         turret.setEnabled(true);
 
@@ -249,17 +247,6 @@ public class BlueSideAutoClose9 extends OpMode {
         if (czd != null) {
             czd.update();
             initSnap = czd.getStableSnapshot();
-        }
-
-        // Keep cypher tag detection during init
-        if (cypherCam != null) {
-            cypherCam.detectDuringInit();
-        }
-        if (cypherTracker != null) {
-            cypherId = cypherTracker.update();
-            if (cypherId == 21) CIPHER = ShotOrderPlanner.Cipher.GPP;
-            else if (cypherId == 22) CIPHER = ShotOrderPlanner.Cipher.PGP;
-            else if (cypherId == 23) CIPHER = ShotOrderPlanner.Cipher.PPG;
         }
 
         // Cap telemetry spam a bit
@@ -305,18 +292,6 @@ public class BlueSideAutoClose9 extends OpMode {
         pathTimer.resetTimer();
         setPathState(0);
         // Ensure global is set even if the last init_loop was missed
-        if (cypherTracker != null) cypherId = cypherTracker.update();
-
-        // Stop Camera
-//        if (cypherCam != null) cypherCam.stopCamera();
-
-        int id = AlliancePresets.getCurrentCypher();
-        if (id == 21) CIPHER = ShotOrderPlanner.Cipher.GPP;
-        else if (id == 22) CIPHER = ShotOrderPlanner.Cipher.PGP;
-        else if (id == 23) CIPHER = ShotOrderPlanner.Cipher.PPG;
-
-        telemetry.addData("LOCKED CIPHER", CIPHER);
-        telemetry.update();
     }
 
     @Override
@@ -325,22 +300,9 @@ public class BlueSideAutoClose9 extends OpMode {
             hub.clearBulkCache();
         }
 
-        if (!cipherLocked && cypherCam != null) {
-            cypherCam.detectDuringInit();
-            int id = cypherCam.getDetectedTag();
-            if (id == 21 || id == 22 || id == 23) {
-                cypherId = id;
-                if (cypherId == 21) CIPHER = ShotOrderPlanner.Cipher.GPP;
-                else if (cypherId == 22) CIPHER = ShotOrderPlanner.Cipher.PGP;
-                else CIPHER = ShotOrderPlanner.Cipher.PPG;
-                cipherLocked = true;
-            }
-        }
-
         telemetry.addLine("=== INIT PREVIEW ===");
         telemetry.addData("Cypher Tag", cypherId);
         telemetry.addData("Cipher", CIPHER);
-        telemetry.addData("Tag detections", cypherCam.getDetectionCount());
         telemetry.addData("Tag id", cypherId);
 
         follower.update();
@@ -393,8 +355,6 @@ public class BlueSideAutoClose9 extends OpMode {
         if (outtakeThread != null) {
             outtakeThread.interrupt();
         }
-
-        cypherCam.stopCamera();
     }
 
     private void setPathState(int newState) {
@@ -519,13 +479,14 @@ public class BlueSideAutoClose9 extends OpMode {
 
             case 100:
                 if (!follower.isBusy()) {
-                    AlliancePresets.setCurrentPose(new Pose2D(
+                    AlliancePresets.setCurrentPose2D(new Pose2D(
                             DistanceUnit.INCH,
                             follower.getPose().getX(),
                             follower.getPose().getY(),
                             AngleUnit.RADIANS,
                             follower.getHeading()
                     ));
+                    AlliancePresets.setCurrentPose(follower.getPose());
                     RPM_MAX = 0;
                     shooter.eStop();
                     follower.breakFollowing();

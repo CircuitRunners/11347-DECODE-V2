@@ -21,7 +21,9 @@ public class ColourZoneDetectionTester extends LinearOpMode {
         FtcDashboard dash = FtcDashboard.getInstance();
         dash.setTelemetryTransmissionInterval(25);
 
-        ColourZoneDetection czd = new ColourZoneDetection(hardwareMap, HUB_NAME_A, HUB_NAME_B);
+        ColourZoneDetection czd = new ColourZoneDetection(hardwareMap,
+                "z1CSa", "z2CSa", "z3CSa",
+                "z1CSb", "z2CSb", "z3CSb");
 
         waitForStart();
 
@@ -32,12 +34,6 @@ public class ColourZoneDetectionTester extends LinearOpMode {
             ColourZoneDetection.Snapshot st  = czd.getStableSnapshot();
 
             TelemetryPacket p = new TelemetryPacket();
-
-            // hub status
-            p.put("hubA.ready", czd.hubAReady());
-            p.put("hubA.disconnected", czd.hubADisconnected());
-            p.put("hubB.ready", czd.hubBReady());
-            p.put("hubB.disconnected", czd.hubBDisconnected());
 
             // per-zone combined state (raw + stable)
             putZoneCombined(p, "z1", raw.z1, st.z1);
@@ -54,8 +50,6 @@ public class ColourZoneDetectionTester extends LinearOpMode {
 
             dash.sendTelemetryPacket(p);
 
-            telemetry.addData("HubA", "ready=%s disc=%s", czd.hubAReady(), czd.hubADisconnected());
-            telemetry.addData("HubB", "ready=%s disc=%s", czd.hubBReady(), czd.hubBDisconnected());
             telemetry.addData("Z1", "RAW:%s has=%s | ST:%s has=%s", raw.z1.color, raw.z1.hasBall, st.z1.color, st.z1.hasBall);
             telemetry.addData("Z2", "RAW:%s has=%s | ST:%s has=%s", raw.z2.color, raw.z2.hasBall, st.z2.color, st.z2.hasBall);
             telemetry.addData("Z3", "RAW:%s has=%s | ST:%s has=%s", raw.z3.color, raw.z3.hasBall, st.z3.color, st.z3.hasBall);
@@ -80,7 +74,6 @@ public class ColourZoneDetectionTester extends LinearOpMode {
         p.put(prefix + ".st.hasBall_int", st.hasBall ? 1 : 0);
 
         // chosen sensor raw (graphable)
-        p.put(prefix + ".chosen.prox", (raw.prox & 0xFFFF));
         p.put(prefix + ".chosen.r", raw.r);
         p.put(prefix + ".chosen.g", raw.g);
         p.put(prefix + ".chosen.b", raw.b);
@@ -96,10 +89,12 @@ public class ColourZoneDetectionTester extends LinearOpMode {
         p.put(prefix + ".present_int", s.present ? 1 : 0);
         p.put(prefix + ".color", s.color.toString());
         p.put(prefix + ".color_int", ColourZoneDetection.colorToInt(s.color));
-        p.put(prefix + ".prox", (s.prox & 0xFFFF));
+
+        p.put(prefix + ".strength", s.strength);
         p.put(prefix + ".r", s.r);
         p.put(prefix + ".g", s.g);
         p.put(prefix + ".b", s.b);
+        p.put(prefix + ".a", s.a);
         p.put(prefix + ".rgb_sum", s.r + s.g + s.b);
     }
 }

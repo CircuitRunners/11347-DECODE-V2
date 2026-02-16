@@ -25,8 +25,7 @@ public class OuttakeSubsystem extends SubsystemBase {
     public static double HOOD_SERVO_MIN = 0.05;
     public static double HOOD_SERVO_MAX = 0.80;
 
-    // Distance->pos table (inches). Tune these on the field.
-    // Example starter values; replace with real measurements.
+    // Distance->pos table (inches)
     public static double D0 = 24,  P0 = 0.18;
     public static double D1 = 48,  P1 = 0.28;
     public static double D2 = 72,  P2 = 0.36;
@@ -94,7 +93,7 @@ public class OuttakeSubsystem extends SubsystemBase {
         return y0 + t * (y1 - y0);
     }
 
-    public double hoodPos() {
+    public double getHoodPos() {
         return hood.getPosition();
     }
     public void aimScoring(double hoodPos) {
