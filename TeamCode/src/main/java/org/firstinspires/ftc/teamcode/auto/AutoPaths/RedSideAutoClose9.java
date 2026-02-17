@@ -132,6 +132,11 @@ public class RedSideAutoClose9 extends OpMode {
                         new BezierLine(new Pose(95.000, 84.000), new Pose(128.000, 84.000))
                 )
                 .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(0))
+
+                .build();
+
+        line3 = follower
+                .pathBuilder()
                 .addPath(
                         new BezierLine(new Pose(128, 84.000), new Pose(118.000, 84.000))
                 )
@@ -140,10 +145,6 @@ public class RedSideAutoClose9 extends OpMode {
                         new BezierLine(new Pose(118.000, 84.000), new Pose(124.000, 84.000))
                 )
                 .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(0))
-                .build();
-
-        line3 = follower
-                .pathBuilder()
                 .addPath(
                         new BezierLine(new Pose(128.000, 84.000), new Pose(84.000, 84.000))
                 )
@@ -164,6 +165,11 @@ public class RedSideAutoClose9 extends OpMode {
                         new BezierLine(new Pose(95.000, 56.000), new Pose(134.000, 56.000))
                 )
                 .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(0))
+
+                .build();
+
+        line6 = follower
+                .pathBuilder()
                 .addPath(
                         new BezierLine(new Pose(134.000, 56.000), new Pose(124.000, 56.000))
                 )
@@ -172,10 +178,6 @@ public class RedSideAutoClose9 extends OpMode {
                         new BezierLine(new Pose(124.000, 56.000), new Pose(130.000, 56.000))
                 )
                 .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(0))
-                .build();
-
-        line6 = follower
-                .pathBuilder()
                 .addPath(
                         new BezierCurve(
                                 new Pose(134.000, 56.000),
