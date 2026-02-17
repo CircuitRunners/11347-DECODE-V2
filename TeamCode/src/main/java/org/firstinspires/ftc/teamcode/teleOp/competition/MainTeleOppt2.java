@@ -5,6 +5,9 @@ import com.arcrobotics.ftclib.command.CommandOpMode;
 import com.arcrobotics.ftclib.command.InstantCommand;
 import com.arcrobotics.ftclib.gamepad.GamepadEx;
 import com.arcrobotics.ftclib.gamepad.GamepadKeys;
+import com.pedropathing.geometry.Pose;
+import com.pedropathing.math.MathFunctions;
+import com.pedropathing.math.Vector;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
@@ -22,6 +25,7 @@ import org.firstinspires.ftc.teamcode.subsystems.transfer.ColourZoneDetection;
 import org.firstinspires.ftc.teamcode.subsystems.transfer.Kickers;
 import org.firstinspires.ftc.teamcode.support.AlliancePresets;
 import org.firstinspires.ftc.teamcode.support.GobildaRGBIndicatorHelper;
+import org.firstinspires.ftc.teamcode.support.OdoAbsoluteHeadingTracking;
 
 import java.util.Locale;
 
@@ -38,6 +42,7 @@ public class MainTeleOppt2 extends CommandOpMode {
     private GamepadEx driver;
     private ColourZoneDetection czd;
     private GobildaRGBIndicatorHelper rgb;
+    private OdoAbsoluteHeadingTracking odoHeading;
     private final ShotOrderPlanner shotPlanner = new ShotOrderPlanner();
     private ShotOrderPlanner.Cipher cipher = ShotOrderPlanner.Cipher.PPG;
     private boolean alliance;
@@ -51,10 +56,18 @@ public class MainTeleOppt2 extends CommandOpMode {
     private int loopCount = 0;
 
     // ============ Ball Detection Stuff ============
-    private final com.qualcomm.robotcore.util.ElapsedTime czTimer = new com.qualcomm.robotcore.util.ElapsedTime();
-    private static final double CZ_SAMPLE_PERIOD_S = 1.5;
 
-    private boolean z1Present = false, z2Present = false, z3Present = false;
+    // ============ Physics ============ 
+    private Pose GOAL_POS_RED = new Pose(138, 138); //138, 138
+    public static double SCORE_HEIGHT = 25;
+    private double SCORE_ANGLE = Math.toRadians(-30);
+    private double PASS_THROUGH_POINT_RADIUS = 5;
+    public static  double HOOD_MAX_ANGLE = Math.toRadians(67);
+    public static double HOOD_MIN_ANGLE = Math.toRadians(0);
+    public static double wheelDiameter = 4.8; //4.9
+    private double hoodAngle = 0;
+    private double flywheelSpeed = 0;
+    private boolean usePhysics = true;
 
     @Override
     public void initialize() {
@@ -76,6 +89,10 @@ public class MainTeleOppt2 extends CommandOpMode {
                 "z1CSa", "z2CSa", "z3CSa",
                 "z1CSb", "z2CSb", "z3CSb");
         rgb = new GobildaRGBIndicatorHelper(hardwareMap);
+        odoHeading = new OdoAbsoluteHeadingTracking(
+                intake.leftOdoMotor(),
+                intake.rightOdoMotor()
+        );
 
         AlliancePresets.setAllianceShooterTag(AlliancePresets.Alliance.RED.getTagId());
         alliance = AlliancePresets.getAllianceShooterTag() == AlliancePresets.Alliance.BLUE.getTagId();
@@ -131,7 +148,6 @@ public class MainTeleOppt2 extends CommandOpMode {
         lastLoopNs = nowNs;
 
         super.run();
-        czTimer.reset();
 
         String data = String.format(Locale.US,
                 "{X: %.3f, Y: %.3f, H: %.3f}",
@@ -140,23 +156,24 @@ public class MainTeleOppt2 extends CommandOpMode {
                 drive.getPose().getHeading(AngleUnit.DEGREES)
         );
 
-        if (czTimer.seconds() >= CZ_SAMPLE_PERIOD_S) {
-            czTimer.reset();
-            czd.update();
-            ColourZoneDetection.Snapshot snap = czd.getRawSnapshot();
-            z1Present = snap.z1.hasBall;
-            z2Present = snap.z2.hasBall;
-            z3Present = snap.z3.hasBall;
+        rgb.setColour(GobildaRGBIndicatorHelper.Colour.RED);
+
+        Pose2D currentPose = drive.getPose();
+        double x = currentPose.getX(DistanceUnit.INCH);
+        double y = currentPose.getY(DistanceUnit.INCH);
+        double heading = odoHeading.getHeadingRad();
+
+        calculateHoodPos(x, y, heading, drive.getVelocity());
+
+        double gearRatio = 1.0;
+
+        double wheelRPM = (flywheelSpeed * 60.0) / (Math.PI * (wheelDiameter / 4.0));
+        double motorRPM = wheelRPM * gearRatio;
+
+        if (usePhysics) {
+            shooter.setTargetRPM(motorRPM);
         }
 
-        boolean allZonesHaveBalls = z1Present && z2Present && z3Present;
-        if (allZonesHaveBalls) {
-            rgb.setColour(GobildaRGBIndicatorHelper.Colour.BLUE);
-        } else {
-            rgb.setColour(GobildaRGBIndicatorHelper.Colour.RED);
-        }
-
-        telemetry.addData("Balls Present", "Z1=%s Z2=%s Z3=%s", z1Present, z2Present, z3Present);
         telemetry.addData("loop dt (ms)", "%.3f", loopMs);
         telemetry.addData("loop avg (ms)", "%.3f", avgLoopMs);
         telemetry.addData("loop max (ms)", "%.3f", maxLoopMs);
@@ -164,5 +181,44 @@ public class MainTeleOppt2 extends CommandOpMode {
         telemetry.addData("Cipher", cipher);
         telemetry.addData("Position", data);
         telemetry.update();
+    }
+
+    public void calculateHoodPos(double robotX, double robotY, double robotHeading, Vector robotVelocity) {
+        // Horizontal distance to goal
+        double dx = GOAL_POS_RED.getX() - robotX;
+        double dy = GOAL_POS_RED.getY() - robotY;
+        double distanceToGoal = Math.hypot(dx, dy);
+        double angleToGoal = Math.atan2(dy, dx);
+        Vector robotToGoalVector = new Vector(distanceToGoal, angleToGoal);
+
+        double g = 32.174 * 12;
+        double x = robotToGoalVector.getMagnitude() - PASS_THROUGH_POINT_RADIUS;
+        double y = SCORE_HEIGHT;
+
+        double a = SCORE_ANGLE;
+
+        //calculuate initial launch components
+        hoodAngle = MathFunctions.clamp(Math.atan(2 * y / x - Math.tan(a)), HOOD_MIN_ANGLE, HOOD_MAX_ANGLE);
+
+        flywheelSpeed = Math.sqrt(g * x * x / (2 * Math.pow(Math.cos(hoodAngle), 2) * (x * Math.tan(hoodAngle) - y)));
+
+
+        //get robot velocity and convert it into parallel and perpendicular components
+        double coordinateTheta = robotVelocity.getTheta() - robotToGoalVector.getTheta();
+
+        double parallelComponent = -Math.cos(coordinateTheta) * robotVelocity.getMagnitude();
+        double perpendicularComponent = Math.sin(coordinateTheta) * robotVelocity.getMagnitude();
+
+        //velocity compensation variables
+        double vz = flywheelSpeed * Math.sin(hoodAngle);
+        double time = x / (flywheelSpeed * Math.cos(hoodAngle));
+        double ivr = x / time + parallelComponent;
+        double nvr = Math.sqrt(ivr * ivr + perpendicularComponent * perpendicularComponent);
+        double ndr = nvr * time;
+
+        //recalculuate launch components
+        hoodAngle = MathFunctions.clamp(Math.atan(vz / nvr), HOOD_MIN_ANGLE, HOOD_MAX_ANGLE);
+
+        flywheelSpeed = Math.sqrt(g * ndr * ndr / (2 * Math.pow(Math.cos(hoodAngle), 2) * (ndr * Math.tan(hoodAngle) - y)));
     }
 }

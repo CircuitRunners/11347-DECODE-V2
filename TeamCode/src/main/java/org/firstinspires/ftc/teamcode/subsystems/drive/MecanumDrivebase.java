@@ -1,6 +1,7 @@
 package org.firstinspires.ftc.teamcode.subsystems.drive;
 
 import com.arcrobotics.ftclib.command.SubsystemBase;
+import com.pedropathing.math.Vector;
 import com.qualcomm.hardware.gobilda.GoBildaPinpointDriver;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
@@ -84,6 +85,12 @@ public class MecanumDrivebase extends SubsystemBase {
 
     public Pose2D getPose() {
         return pinpoint.getPosition();
+    }
+
+    public Vector getVelocity() {
+        Vector vector = new Vector();
+        vector.setOrthogonalComponents(pinpoint.getVelX(DistanceUnit.INCH), pinpoint.getVelY(DistanceUnit.INCH));
+        return vector;
     }
 
     public void setPose2D(Pose2D pose2D) {
