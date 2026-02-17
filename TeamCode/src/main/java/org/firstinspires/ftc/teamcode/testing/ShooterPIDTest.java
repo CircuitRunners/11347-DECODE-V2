@@ -20,7 +20,7 @@ import com.qualcomm.robotcore.hardware.DcMotorSimple;
  */
 //@Disabled
 @Config
-@TeleOp
+@TeleOp(group="2")
 public class ShooterPIDTest extends CommandOpMode {
     private DcMotorEx shooter1, shooter2;
     public GamepadEx driver;

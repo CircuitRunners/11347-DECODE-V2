@@ -5,8 +5,8 @@ import com.arcrobotics.ftclib.command.CommandOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.Servo;
 
-@TeleOp
 @Config
+@TeleOp(group="2")
 public class TurretServoRangefinder extends CommandOpMode {
     private Servo turret;
     public static double pose = 0.5;

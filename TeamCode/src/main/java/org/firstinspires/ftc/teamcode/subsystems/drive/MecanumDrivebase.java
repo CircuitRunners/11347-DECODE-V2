@@ -94,6 +94,10 @@ public class MecanumDrivebase extends SubsystemBase {
         pinpoint.setPosition(new Pose2D(DistanceUnit.INCH, 72,72, AngleUnit.RADIANS,Math.toRadians(0)));
     }
 
+    public int getPinpointLooptime() {
+        return pinpoint.getLoopTime();
+    }
+
     private void configurePinpoint() {
         pinpoint.resetPosAndIMU();
 
