@@ -25,25 +25,13 @@ public class StaticShooter extends SubsystemBase {
     private FtcDashboard dash;
 
     // --- Shooter Constants ---
-    private static double TARGET_RPM = 3000.0;         // desired shooter RPM
-    private static double MOTOR_RPM = 6000.0;          // motor RPM (based on max motor rpm)
-    private static double GEAR_RATIO = 1.0;    // gear ratio from motor to shooter
-    private static double TICKS_PER_REV = 28;          // motor encoder ticks per revolution
+    private static double TARGET_RPM = 3000.0;          // desired shooter RPM
+    private static double MOTOR_RPM = 6000.0;           // motor RPM (based on max motor rpm)
+    private static double GEAR_RATIO = 1.0;             // gear ratio from motor to shooter
+    private static double TICKS_PER_REV = 28;           // motor encoder ticks per revolution
     private boolean active;
 
     // --- PIDF Coefficients ---
-    //working value 35 on October 9th, 2025
-/*    public double kP = 35.0;
-    public double kI = 0.0;
-    public double kD = 10.0;
-    public double kF = 13.0;*/
-
-    /// Working values for 1 6k rpm motor at lm3
-//    public static double kP = 6; // 35
-//    public static double kI = 0.0;
-//    public static double kD = 5; // 10
-//    public static double kF = 8; // 13
-
     /// Working values for 2 6k motors as of 12/20/25
     public static double kP = 150;
     public static double kI = 0.0;
@@ -199,19 +187,14 @@ public class StaticShooter extends SubsystemBase {
      * Calculates ticks per second based on target RPM
      * Sets the target velocity
      * */
-    public void update() {
-//        double targetTicksPerSec = ((TARGET_RPM / GEAR_RATIO) * TICKS_PER_REV) / 60;
+    @Override
+    public void periodic() {
         double targetMotorRPM = TARGET_RPM / GEAR_RATIO;
         double targetTicksPerSec = (targetMotorRPM * TICKS_PER_REV) / 60.0;
         shooter1.setVelocity(targetTicksPerSec);
         shooter2.setVelocity(targetTicksPerSec);
 
         active = Math.abs(getTargetRPM()) > 0;
-    }
-
-    @Override
-    public void periodic() {
-        update();
     }
 
     /** Stops all shooter motion immediately. */
@@ -228,12 +211,6 @@ public class StaticShooter extends SubsystemBase {
      *         motor rpm, ticks per rev, and gear ratio
      */
     public double getShooterVelocity() {
-//        double currTicksPerSec = shooter1.getVelocity(); // ticks/s of motor
-//        double currMotorRPM = (currTicksPerSec * 60.0) / TICKS_PER_REV;
-//        double currShooterRPM = currMotorRPM * GEAR_RATIO;
-//
-//        return currShooterRPM;
-
         double currTicksPerSec = shooter1.getVelocity(); // ticks/s of motor
         double currTicksPerSec2 = shooter2.getVelocity();
         double currMotorRPM = (((currTicksPerSec + currTicksPerSec2) / 2) * 60) / TICKS_PER_REV;
