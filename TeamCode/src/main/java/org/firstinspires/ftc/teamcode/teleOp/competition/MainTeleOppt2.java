@@ -5,7 +5,6 @@ import com.arcrobotics.ftclib.command.CommandOpMode;
 import com.arcrobotics.ftclib.command.InstantCommand;
 import com.arcrobotics.ftclib.gamepad.GamepadEx;
 import com.arcrobotics.ftclib.gamepad.GamepadKeys;
-import com.pedropathing.util.Timer;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
@@ -22,6 +21,7 @@ import org.firstinspires.ftc.teamcode.subsystems.shooter.StaticShooter;
 import org.firstinspires.ftc.teamcode.subsystems.transfer.ColourZoneDetection;
 import org.firstinspires.ftc.teamcode.subsystems.transfer.Kickers;
 import org.firstinspires.ftc.teamcode.support.AlliancePresets;
+import org.firstinspires.ftc.teamcode.support.GobildaRGBIndicatorHelper;
 
 import java.util.Locale;
 
@@ -37,13 +37,11 @@ public class MainTeleOppt2 extends CommandOpMode {
     // ============ Software ============
     private GamepadEx driver;
     private ColourZoneDetection czd;
+    private GobildaRGBIndicatorHelper rgb;
     private final ShotOrderPlanner shotPlanner = new ShotOrderPlanner();
     private ShotOrderPlanner.Cipher cipher = ShotOrderPlanner.Cipher.PPG;
-    private Timer loopTimer;
     private boolean alliance;
     private boolean isActive = false;
-
-    public static boolean execute = false;
 
     // ============ Loop Time Stuff ============
     private long lastLoopNs = 0;
@@ -51,6 +49,12 @@ public class MainTeleOppt2 extends CommandOpMode {
     private double avgLoopMs = 0;
     private double maxLoopMs = 0;
     private int loopCount = 0;
+
+    // ============ Ball Detection Stuff ============
+    private final com.qualcomm.robotcore.util.ElapsedTime czTimer = new com.qualcomm.robotcore.util.ElapsedTime();
+    private static final double CZ_SAMPLE_PERIOD_S = 1.5;
+
+    private boolean z1Present = false, z2Present = false, z3Present = false;
 
     @Override
     public void initialize() {
@@ -71,8 +75,7 @@ public class MainTeleOppt2 extends CommandOpMode {
         czd = new ColourZoneDetection(hardwareMap,
                 "z1CSa", "z2CSa", "z3CSa",
                 "z1CSb", "z2CSb", "z3CSb");
-
-        loopTimer = new Timer();
+        rgb = new GobildaRGBIndicatorHelper(hardwareMap);
 
         AlliancePresets.setAllianceShooterTag(AlliancePresets.Alliance.RED.getTagId());
         alliance = AlliancePresets.getAllianceShooterTag() == AlliancePresets.Alliance.BLUE.getTagId();
@@ -104,8 +107,12 @@ public class MainTeleOppt2 extends CommandOpMode {
                         false
                 ));
 
-        drive.setStaringPose2D();
+        // ============ Registered & Auto Updating Code ============
         register(shooter, kicker);
+
+        // ============ Set Start Pose ============
+        drive.setStaringPose2D();
+        rgb.setColour(GobildaRGBIndicatorHelper.Colour.GREEN);
 
         // ============ Telemetry ============
         telemetry.addLine("Init Done");
@@ -114,16 +121,17 @@ public class MainTeleOppt2 extends CommandOpMode {
 
     @Override
     public void run() {
-        super.run();
         long nowNs = System.nanoTime();
         if (lastLoopNs != 0) {
-            loopMs = (nowNs - lastLoopNs) / 1e6; // ms between loop starts
+            loopMs = (nowNs - lastLoopNs) / 1e6;
             loopCount++;
-            avgLoopMs += (loopMs - avgLoopMs) / loopCount; // running average
+            avgLoopMs += (loopMs - avgLoopMs) / loopCount;
             if (loopMs > maxLoopMs) maxLoopMs = loopMs;
         }
         lastLoopNs = nowNs;
-        loopTimer.resetTimer();
+
+        super.run();
+        czTimer.reset();
 
         String data = String.format(Locale.US,
                 "{X: %.3f, Y: %.3f, H: %.3f}",
@@ -132,6 +140,23 @@ public class MainTeleOppt2 extends CommandOpMode {
                 drive.getPose().getHeading(AngleUnit.DEGREES)
         );
 
+        if (czTimer.seconds() >= CZ_SAMPLE_PERIOD_S) {
+            czTimer.reset();
+            czd.update();
+            ColourZoneDetection.Snapshot snap = czd.getRawSnapshot();
+            z1Present = snap.z1.hasBall;
+            z2Present = snap.z2.hasBall;
+            z3Present = snap.z3.hasBall;
+        }
+
+        boolean allZonesHaveBalls = z1Present && z2Present && z3Present;
+        if (allZonesHaveBalls) {
+            rgb.setColour(GobildaRGBIndicatorHelper.Colour.BLUE);
+        } else {
+            rgb.setColour(GobildaRGBIndicatorHelper.Colour.RED);
+        }
+
+        telemetry.addData("Balls Present", "Z1=%s Z2=%s Z3=%s", z1Present, z2Present, z3Present);
         telemetry.addData("loop dt (ms)", "%.3f", loopMs);
         telemetry.addData("loop avg (ms)", "%.3f", avgLoopMs);
         telemetry.addData("loop max (ms)", "%.3f", maxLoopMs);
