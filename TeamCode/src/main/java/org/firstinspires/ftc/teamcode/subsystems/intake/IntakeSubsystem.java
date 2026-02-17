@@ -36,14 +36,14 @@ public class IntakeSubsystem extends SubsystemBase {
         intakeChubM.setPower(Range.clip(power, -0.9, 0.9));
 
         double sPower = reverseChubServoDirection ? -power : power;
-        intakeChubS.set(sPower);
+        intakeEhubS.set(sPower);
     }
 
     public void intakeEhub(double power) {
         intakeEhubM.setPower(Range.clip(power, -0.9, 0.9));
 
         double sPower = reverseEhubServoDirection ? -power : power;
-        intakeEhubS.set(sPower);
+        intakeChubS.set(sPower);
     }
 
     public void intake(double power) {

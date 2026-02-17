@@ -33,7 +33,7 @@ import java.util.List;
 
 @Config
 @Configurable
-@Autonomous(name = "Red Side Auto Close 6", group = "Red Autos", preselectTeleOp = "MainTeleOp")
+@Autonomous(name = "Red Side Auto Close 9", group = "Red Autos", preselectTeleOp = "MainTeleOp")
 public class RedSideAutoClose9 extends OpMode {
     // ===================== GOAL / AUTO AIM =====================
     public static Pose TURRET_TARGET_POSE = new Pose(136, 136);   // field inches
@@ -51,7 +51,7 @@ public class RedSideAutoClose9 extends OpMode {
     private ColourZoneDetection.Snapshot lastStableSnap = null;
 
     // Shooter ready gate
-    public static double SHOOTER_READY_TOL_RPM = 200.0;
+    public static double SHOOTER_READY_TOL_RPM = 100.0;
     public static double SHOOTER_READY_TIMEOUT_S = 0.8;
 
     // Kicker timings
@@ -78,7 +78,7 @@ public class RedSideAutoClose9 extends OpMode {
     public static double RPM_D4_IN = 120, RPM_P4 = 3800;
 
     public static double RPM_MIN = 0.0;
-    public static double RPM_MAX = 2850.0; //TODO: reset to 2900
+    public static double RPM_MAX = 3100.0; //TODO: reset to 2900
 
     // ===================== HARDWARE =====================
     private StaticShooter shooter;
@@ -109,7 +109,7 @@ public class RedSideAutoClose9 extends OpMode {
     private Timer pathTimer;
     private int pathState = 0;
 
-    private final Pose startPose = new Pose(110.5, 135.500, Math.toRadians(0));
+    private final Pose startPose = new Pose(125.0, 120.00, Math.toRadians(36));
     private PathChain line1, line2, line3, line4, line5, line6, line7, line8, line67;
 
     // ===================== BUILD PATHS =====================
@@ -117,22 +117,27 @@ public class RedSideAutoClose9 extends OpMode {
         line1 = follower
                 .pathBuilder()
                 .addPath(
-                        new BezierLine(new Pose(110.500, 135.500), new Pose(100.000, 100.000)) //82 100
+                        new BezierLine(new Pose(125, 120.00), new Pose(84, 84)) //82 100
                 )
-                .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(30))
+                .setLinearHeadingInterpolation(Math.toRadians(36), Math.toRadians(36))
                 .build();
-//        line67 = follower
-//                .pathBuilder()
-//                .addPath(
-//                        new BezierLine(new Pose(82.00, 100.00), new Pose(100.000, 100.000))
-//                )
-//                .setLinearHeadingInterpolation(Math.toRadians(30), Math.toRadians(0))
-//                .build();
 
         line2 = follower
                 .pathBuilder()
                 .addPath(
-                        new BezierLine(new Pose(100.000, 100.000), new Pose(97.000, 84.000))
+                        new BezierLine(new Pose(84, 84), new Pose(95, 84.000))
+                )
+                .setLinearHeadingInterpolation(Math.toRadians(36), Math.toRadians(0))
+                .addPath(
+                        new BezierLine(new Pose(95.000, 84.000), new Pose(128.000, 84.000))
+                )
+                .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(0))
+                .addPath(
+                        new BezierLine(new Pose(128, 84.000), new Pose(118.000, 84.000))
+                )
+                .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(0))
+                .addPath(
+                        new BezierLine(new Pose(118.000, 84.000), new Pose(124.000, 84.000))
                 )
                 .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(0))
                 .build();
@@ -140,7 +145,7 @@ public class RedSideAutoClose9 extends OpMode {
         line3 = follower
                 .pathBuilder()
                 .addPath(
-                        new BezierLine(new Pose(97.000, 84.000), new Pose(130.000, 84.000))
+                        new BezierLine(new Pose(128.000, 84.000), new Pose(84.000, 84.000))
                 )
                 .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(0))
                 .build();
@@ -148,7 +153,7 @@ public class RedSideAutoClose9 extends OpMode {
         line4 = follower
                 .pathBuilder()
                 .addPath(
-                        new BezierLine(new Pose(125.000, 84.000), new Pose(100.000, 100.000))
+                        new BezierLine(new Pose(84.000, 84.000), new Pose(95.000, 56.000))
                 )
                 .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(0))
                 .build();
@@ -156,7 +161,15 @@ public class RedSideAutoClose9 extends OpMode {
         line5 = follower
                 .pathBuilder()
                 .addPath(
-                        new BezierLine(new Pose(100.000, 100.000), new Pose(97.000, 60.000))
+                        new BezierLine(new Pose(95.000, 56.000), new Pose(134.000, 56.000))
+                )
+                .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(0))
+                .addPath(
+                        new BezierLine(new Pose(134.000, 56.000), new Pose(124.000, 56.000))
+                )
+                .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(0))
+                .addPath(
+                        new BezierLine(new Pose(124.000, 56.000), new Pose(130.000, 56.000))
                 )
                 .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(0))
                 .build();
@@ -164,29 +177,32 @@ public class RedSideAutoClose9 extends OpMode {
         line6 = follower
                 .pathBuilder()
                 .addPath(
-                        new BezierLine(new Pose(97.000, 60.000), new Pose(133.500, 60.000))
+                        new BezierCurve(
+                                new Pose(134.000, 56.000),
+                                new Pose(100,55),
+                                new Pose(100, 92.000))
                 )
-                .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(0))
+                .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(-30))
                 .build();
 
-        line7 = follower
-                .pathBuilder()
-                .addPath(
-                        new BezierCurve(
-                                new Pose(133.500, 60.000),
-                                new Pose(98.000, 64.000),//80
-                                new Pose(100.000, 100.000)
-                        )
-                )
-                .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(0))
-                .build();
+//        line7 = follower
+//                .pathBuilder()
+//                .addPath(
+//                        new BezierCurve(
+//                                new Pose(133.500, 60.000),
+//                                new Pose(98.000, 64.000),//80
+//                                new Pose(100.000, 100.000)
+//                        )
+//                )
+//                .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(0))
+//                .build();
 
         line8 = follower
                 .pathBuilder()
                 .addPath(
-                        new BezierLine(new Pose(100.000, 100.000), new Pose(110.000, 75.000))
+                        new BezierLine(new Pose(100.000, 92.000), new Pose(120.000, 85.000))
                 )
-                .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(0))
+                .setLinearHeadingInterpolation(Math.toRadians(-30), Math.toRadians(0))
                 .build();
 
     }
@@ -436,6 +452,7 @@ public class RedSideAutoClose9 extends OpMode {
             case 2:
                 // start moving to first pickup path
                 if (!follower.isBusy()) {
+                    follower.setMaxPower(0.5);
                     intake();
                     follower.followPath(line2);
                     setPathState(3);
@@ -444,15 +461,16 @@ public class RedSideAutoClose9 extends OpMode {
 
             case 3:
                 if (!follower.isBusy()) {
+                    follower.setMaxPower(1);
                     follower.followPath(line3);
-                    setPathState(4);
+                    setPathState(5);
                 }
                 break;
 
             case 4:
                 // Go back to shoot position
                 if (!follower.isBusy()) {
-                    follower.followPath(line4);
+                    //follower.followPath(line);
                     setPathState(5);
                 }
                 break;
@@ -476,21 +494,24 @@ public class RedSideAutoClose9 extends OpMode {
                 // intake balls a second time
                 if (!follower.isBusy()) {
                     intake();
-                    follower.followPath(line5);
+                    follower.followPath(line4);
                     setPathState(7);
                 }
                 break;
 
             case 7:
                 if (!follower.isBusy()) {
-                    follower.followPath(line6);
+                    follower.setMaxPower(0.45);
+                    follower.followPath(line5);
                     setPathState(8);
                 }
                 break;
 
             case 8:
                 if (!follower.isBusy()) {
-                    follower.followPath(line7);
+                    follower.setMaxPower(1);
+                    RPM_MAX = 2850;
+                    follower.followPath(line6);
                     setPathState(9);
                 }
                 break;
@@ -677,11 +698,12 @@ public class RedSideAutoClose9 extends OpMode {
     }
 
     private void intake() {
-        intake.intakeEhub(1);
+        //intake.intakeEhub(1);
+        intake.intake(1);
     }
 
     private void outtake() {
-        intake.intakeEhub(-1);
+        intake.intake(-1);
     }
 
     private void stopIntake() {
