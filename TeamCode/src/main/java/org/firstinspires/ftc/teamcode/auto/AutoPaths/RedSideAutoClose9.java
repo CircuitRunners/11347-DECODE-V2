@@ -423,6 +423,7 @@ public class RedSideAutoClose9 extends OpMode {
             case 0:
                 // ensure stopped at start
                 if (!follower.isBusy()) {
+                    RPM_MAX = 3100;
                     follower.setMaxPower(1);
                     follower.followPath(line1);
                     setPathState(1);
