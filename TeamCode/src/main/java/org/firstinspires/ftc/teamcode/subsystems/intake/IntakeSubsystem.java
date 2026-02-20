@@ -12,7 +12,7 @@ import org.firstinspires.ftc.robotcore.external.Telemetry;
 @Config
 public class IntakeSubsystem extends SubsystemBase {
     private DcMotorEx intakeChubM, intakeEhubM;
-    private CRServo intakeChubS, intakeEhubS;
+    private CRServo intakeRed, intakeBlue;
     public static boolean reverseChubServoDirection = false; // true
     public static boolean reverseEhubServoDirection = false;
 
@@ -20,8 +20,8 @@ public class IntakeSubsystem extends SubsystemBase {
         intakeChubM = hardwareMap.get(DcMotorEx.class, "intakeChub");
         intakeEhubM = hardwareMap.get(DcMotorEx.class, "intakeEhub");
 
-        intakeChubS = new CRServo(hardwareMap, "intakeChubServo");
-        intakeEhubS = new CRServo(hardwareMap, "intakeEhubServo");
+        intakeRed = new CRServo(hardwareMap, "intakeRed");
+        intakeBlue = new CRServo(hardwareMap, "intakeBlue");
 
         intakeChubM.setMode(DcMotorEx.RunMode.RUN_WITHOUT_ENCODER);
         intakeEhubM.setMode(DcMotorEx.RunMode.RUN_WITHOUT_ENCODER);
@@ -33,14 +33,14 @@ public class IntakeSubsystem extends SubsystemBase {
         intakeChubM.setPower(Range.clip(power, -0.9, 0.9));
 
         double sPower = reverseChubServoDirection ? -power : power;
-        intakeChubS.set(sPower);
+        intakeBlue.set(sPower);
     }
 
     public void intakeEhub(double power) {
         intakeEhubM.setPower(Range.clip(power, -0.9, 0.9));
 
         double sPower = reverseEhubServoDirection ? -power : power;
-        intakeEhubS.set(sPower);
+        intakeRed.set(sPower);
     }
 
     public void intake(double power) {

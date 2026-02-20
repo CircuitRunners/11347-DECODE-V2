@@ -1,6 +1,9 @@
 package org.firstinspires.ftc.teamcode.subsystems.drive;
 
 import com.arcrobotics.ftclib.command.SubsystemBase;
+import com.pedropathing.follower.Follower;
+import com.pedropathing.follower.FollowerConstants;
+import com.pedropathing.geometry.Pose;
 import com.pedropathing.math.Vector;
 import com.qualcomm.hardware.gobilda.GoBildaPinpointDriver;
 import com.qualcomm.robotcore.hardware.DcMotor;
@@ -11,6 +14,7 @@ import com.qualcomm.robotcore.hardware.HardwareMap;
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.Pose2D;
+import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
 
 
 public class MecanumDrivebase extends SubsystemBase {
@@ -18,16 +22,18 @@ public class MecanumDrivebase extends SubsystemBase {
     public DcMotorEx frontRightMotor;
     public DcMotorEx backLeftMotor;
     public DcMotorEx backRightMotor;
-    private GoBildaPinpointDriver pinpoint;
+    private Follower follower;
+    private boolean isRed = false;
 
-    public MecanumDrivebase(HardwareMap hardwareMap) {
+    public MecanumDrivebase(HardwareMap hardwareMap, boolean isRed) {
         frontLeftMotor = hardwareMap.get(DcMotorEx.class, "fl");
         frontRightMotor = hardwareMap.get(DcMotorEx.class, "fr");
         backLeftMotor = hardwareMap.get(DcMotorEx.class, "bl");
         backRightMotor = hardwareMap.get(DcMotorEx.class, "br");
 
-        pinpoint = hardwareMap.get(GoBildaPinpointDriver.class, "pinpoint");
-        configurePinpoint();
+        follower = Constants.createFollower(hardwareMap);
+        this.isRed = isRed;
+        setStartingPose();
 
         frontLeftMotor.setDirection(DcMotorSimple.Direction.REVERSE);
         backLeftMotor.setDirection(DcMotorSimple.Direction.REVERSE);
@@ -67,52 +73,34 @@ public class MecanumDrivebase extends SubsystemBase {
     }
 
     public void driveFieldRelative(double forward, double right, double rotate, boolean reverseHeading) {
-        pinpoint.update();
+        follower.update();
 
-        Pose2D pos = pinpoint.getPosition();  // Current position
+        Pose pos = follower.getPose();
 
-        double robotAngle = !reverseHeading ? Math.toRadians(pos.getHeading(AngleUnit.DEGREES)) : Math.toRadians(pos.getHeading(AngleUnit.DEGREES) - 180);
+        double robotAngle = !reverseHeading ? pos.getHeading() : pos.getHeading() - Math.toRadians(180);
         double theta = Math.atan2(forward, right);
         double r = Math.hypot(forward, right);
-        theta = AngleUnit
-                .normalizeRadians(theta - robotAngle);
+        theta = AngleUnit.normalizeRadians(theta - robotAngle);
 
-        double newForward = r * Math.sin(theta);
-        double newRight   = r * Math.cos(theta);
+        double newForward   = r * Math.sin(theta);
+        double newRight     = r * Math.cos(theta);
 
         drive(newForward, newRight, rotate);
     }
 
-    public Pose2D getPose() {
-        return pinpoint.getPosition();
+    public Pose getPose() {
+        return follower.getPose();
     }
 
     public Vector getVelocity() {
-        Vector vector = new Vector();
-        vector.setOrthogonalComponents(pinpoint.getVelX(DistanceUnit.INCH), pinpoint.getVelY(DistanceUnit.INCH));
-        return vector;
+        return follower.getVelocity();
     }
 
-    public void setPose2D(Pose2D pose2D) {
-        pinpoint.setPosition(pose2D);
+    public void setPose(Pose pose) {
+        follower.setPose(pose);
     }
 
-    public void setStaringPose2D() {
-        pinpoint.setPosition(new Pose2D(DistanceUnit.INCH, 72,72, AngleUnit.RADIANS,Math.toRadians(0)));
-    }
-
-    public int getPinpointLooptime() {
-        return pinpoint.getLoopTime();
-    }
-
-    private void configurePinpoint() {
-        pinpoint.resetPosAndIMU();
-
-        pinpoint.setOffsets(145.12237, -145.12237, DistanceUnit.MM);
-        pinpoint.setEncoderResolution(GoBildaPinpointDriver.GoBildaOdometryPods.goBILDA_4_BAR_POD);
-        pinpoint.setEncoderDirections(
-                GoBildaPinpointDriver.EncoderDirection.REVERSED,
-                GoBildaPinpointDriver.EncoderDirection.FORWARD
-        );
+    public void setStartingPose() {
+        follower.setPose(new Pose(72, 72, isRed ? Math.toRadians(0.0) : Math.toRadians(180.0)));
     }
 }

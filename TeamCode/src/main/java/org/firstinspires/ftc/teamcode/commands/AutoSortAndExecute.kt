@@ -2,6 +2,7 @@ package org.firstinspires.ftc.teamcode.commands
 
 import com.arcrobotics.ftclib.command.InstantCommand
 import com.arcrobotics.ftclib.command.SequentialCommandGroup
+import org.firstinspires.ftc.robotcore.external.Telemetry
 import org.firstinspires.ftc.teamcode.subsystems.transfer.ColourZoneDetection
 import org.firstinspires.ftc.teamcode.subsystems.transfer.Kickers
 
@@ -18,7 +19,8 @@ class AutoSortAndExecute(
     private val kickUpTimeS: Double = 0.18,
     private val resetTimeS: Double = 0.12,
     private val useRaw: Boolean = false,
-    private val forceAllZones: Boolean = false
+    private val forceAllZones: Boolean = false,
+    private val telemetry : Telemetry
 ) : SequentialCommandGroup() {
 
     private var cachedPlan: List<ShotOrderPlanner.PlannedShot> = emptyList()
@@ -29,7 +31,8 @@ class AutoSortAndExecute(
             planner = planner,
             cipherProvider = cipherProvider,
             useRaw = useRaw,
-            forceAllZones = forceAllZones
+            forceAllZones = forceAllZones,
+            telemetry = telemetry
         )
 
         addCommands(

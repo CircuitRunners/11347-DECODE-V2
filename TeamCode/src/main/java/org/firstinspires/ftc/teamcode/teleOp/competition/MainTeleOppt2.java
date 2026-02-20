@@ -3,31 +3,29 @@ package org.firstinspires.ftc.teamcode.teleOp.competition;
 import com.acmerobotics.dashboard.config.Config;
 import com.arcrobotics.ftclib.command.CommandOpMode;
 import com.arcrobotics.ftclib.command.InstantCommand;
+import com.arcrobotics.ftclib.command.PerpetualCommand;
 import com.arcrobotics.ftclib.gamepad.GamepadEx;
 import com.arcrobotics.ftclib.gamepad.GamepadKeys;
 import com.pedropathing.geometry.Pose;
-import com.pedropathing.math.MathFunctions;
-import com.pedropathing.math.Vector;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 
-import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
-import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
-import org.firstinspires.ftc.robotcore.external.navigation.Pose2D;
 import org.firstinspires.ftc.teamcode.auto.BulkCacheCommand;
 import org.firstinspires.ftc.teamcode.commands.AutoSortAndExecute;
+import org.firstinspires.ftc.teamcode.commands.CalculateHoodPoseAndVelocity;
 import org.firstinspires.ftc.teamcode.commands.IntakeCommand;
 import org.firstinspires.ftc.teamcode.commands.DriveCommand;
 import org.firstinspires.ftc.teamcode.commands.ShotOrderPlanner;
+import org.firstinspires.ftc.teamcode.commands.TurretAutoAim;
 import org.firstinspires.ftc.teamcode.subsystems.drive.MecanumDrivebase;
 import org.firstinspires.ftc.teamcode.subsystems.intake.IntakeSubsystem;
-import org.firstinspires.ftc.teamcode.subsystems.shooter.OuttakeSubsystem;
+import org.firstinspires.ftc.teamcode.subsystems.shooter.HoodSubsystem;
+import org.firstinspires.ftc.teamcode.subsystems.shooter.ServoTurretTracker;
 import org.firstinspires.ftc.teamcode.subsystems.shooter.StaticShooter;
 import org.firstinspires.ftc.teamcode.subsystems.transfer.ColourZoneDetection;
 import org.firstinspires.ftc.teamcode.subsystems.transfer.Kickers;
 import org.firstinspires.ftc.teamcode.support.AlliancePresets;
 import org.firstinspires.ftc.teamcode.support.GobildaRGBIndicatorHelper;
 import org.firstinspires.ftc.teamcode.support.OdoAbsoluteHeadingTracking;
-import com.qualcomm.robotcore.util.Range;
 
 import java.util.Locale;
 
@@ -38,8 +36,9 @@ public class MainTeleOppt2 extends CommandOpMode {
     private MecanumDrivebase drive;
     private StaticShooter shooter;
     private IntakeSubsystem intake;
-    private OuttakeSubsystem outtake;
+    private HoodSubsystem hood;
     private Kickers kicker;
+    private ServoTurretTracker turret;
 
     // ============ Software ============
     private GamepadEx driver;
@@ -48,7 +47,7 @@ public class MainTeleOppt2 extends CommandOpMode {
     private OdoAbsoluteHeadingTracking odoHeading;
     private final ShotOrderPlanner shotPlanner = new ShotOrderPlanner();
     private ShotOrderPlanner.Cipher cipher = ShotOrderPlanner.Cipher.PPG;
-    private boolean alliance;
+    private boolean isRed;
     private boolean isActive = false;
 
     // ============ Loop Time Stuff ============
@@ -58,35 +57,27 @@ public class MainTeleOppt2 extends CommandOpMode {
     private double maxLoopMs = 0;
     private int loopCount = 0;
 
-    // ============ Ball Detection Stuff ============
-
     // ============ Physics ============ 
-    private Pose GOAL_POS_RED = new Pose(138, 138); //138, 138
-    public static double SCORE_HEIGHT = 20; //25
-    private double SCORE_ANGLE = Math.toRadians(-30);
-    private double PASS_THROUGH_POINT_RADIUS = 5;
+    private final Pose GOAL_POS_RED = new Pose(138, 138); //138, 138
+    private final Pose GOAL_POS_BLUE = new Pose(-4, 136);
+    private final double SCORE_ANGLE = Math.toRadians(-30);
     public static double HOOD_MAX_ANGLE = Math.toRadians(67);
     public static double HOOD_MIN_ANGLE = Math.toRadians(0);
-    public static double maxHoodTicks = 0.90;
-    public static double wheelDiameter = 4.8; //4.9
-    private double hoodAngle = 0;
-    private double flywheelSpeed = 0;
-    private boolean usePhysics = true;
 
     @Override
     public void initialize() {
-        schedule(new BulkCacheCommand(hardwareMap));
-
         // ============ Hardware ============
-        drive = new MecanumDrivebase(hardwareMap);
+        drive = new MecanumDrivebase(hardwareMap, true);
 
         shooter = new StaticShooter(hardwareMap, telemetry);
         shooter.setTargetRPM(0);
 
         intake = new IntakeSubsystem(hardwareMap, telemetry);
-        outtake = new OuttakeSubsystem(hardwareMap);
+        hood = new HoodSubsystem(hardwareMap);
 
         kicker = new Kickers(hardwareMap);
+
+        turret = new ServoTurretTracker(hardwareMap, "turret");
 
         // ============ Software ============
         driver = new GamepadEx(gamepad1);
@@ -100,11 +91,13 @@ public class MainTeleOppt2 extends CommandOpMode {
         );
 
         AlliancePresets.setAllianceShooterTag(AlliancePresets.Alliance.RED.getTagId());
-        alliance = AlliancePresets.getAllianceShooterTag() == AlliancePresets.Alliance.BLUE.getTagId();
+        isRed = AlliancePresets.getAllianceShooterTag() == AlliancePresets.Alliance.RED.getTagId();
+
+        Pose TARGET_GOAL_POSE = isRed ? GOAL_POS_RED : GOAL_POS_BLUE;
 
         // ============ Commands ============
-        drive.setDefaultCommand(new DriveCommand(drive, driver, alliance));
-        intake.setDefaultCommand(new IntakeCommand(intake, driver));
+        drive.setDefaultCommand(new DriveCommand(drive, driver, isRed));
+        intake.setDefaultCommand(new IntakeCommand(intake, driver, czd, rgb));
 
         driver.getGamepadButton(GamepadKeys.Button.RIGHT_BUMPER)
                 .whenPressed(new InstantCommand(() -> {
@@ -114,7 +107,7 @@ public class MainTeleOppt2 extends CommandOpMode {
 
         driver.getGamepadButton(GamepadKeys.Button.DPAD_LEFT)
                 .whenPressed(new InstantCommand(()->
-                        drive.setPose2D(new Pose2D(DistanceUnit.INCH, 72,72, AngleUnit.RADIANS,Math.toRadians(0)))
+                        drive.setPose(new Pose(72,72, Math.toRadians(0)))
                 ));
 
         driver.getGamepadButton(GamepadKeys.Button.LEFT_BUMPER)
@@ -126,14 +119,27 @@ public class MainTeleOppt2 extends CommandOpMode {
                         0.18,
                         0.12,
                         false,
-                        false
+                        false,
+                        telemetry
                 ));
 
         // ============ Registered & Auto Updating Code ============
-        register(shooter, kicker);
+        register(shooter, kicker, hood);
+        schedule(new BulkCacheCommand(hardwareMap),
+                new PerpetualCommand(
+                        new CalculateHoodPoseAndVelocity(
+                                drive, shooter, hood, TARGET_GOAL_POSE,
+                                5.0, 20.0, SCORE_ANGLE,
+                                HOOD_MIN_ANGLE, HOOD_MAX_ANGLE
+                        )),
+                new PerpetualCommand(
+                        new TurretAutoAim(
+                                drive, turret, odoHeading, TARGET_GOAL_POSE
+                        ))
+        );
 
         // ============ Set Start Pose ============
-        drive.setStaringPose2D();
+        drive.setStartingPose();
         rgb.setColour(GobildaRGBIndicatorHelper.Colour.GREEN);
 
         // ============ Telemetry ============
@@ -151,85 +157,20 @@ public class MainTeleOppt2 extends CommandOpMode {
             if (loopMs > maxLoopMs) maxLoopMs = loopMs;
         }
         lastLoopNs = nowNs;
-
         super.run();
-        outtake.update();
 
         String data = String.format(Locale.US,
                 "{X: %.3f, Y: %.3f, H: %.3f}",
-                drive.getPose().getX(DistanceUnit.INCH),
-                drive.getPose().getY(DistanceUnit.INCH),
-                drive.getPose().getHeading(AngleUnit.DEGREES)
+                drive.getPose().getX(),
+                drive.getPose().getY(),
+                drive.getPose().getHeading()
         );
-
-        rgb.setColour(GobildaRGBIndicatorHelper.Colour.RED);
-
-        Pose2D currentPose = drive.getPose();
-        double x = currentPose.getX(DistanceUnit.INCH);
-        double y = currentPose.getY(DistanceUnit.INCH);
-        double heading = odoHeading.getHeadingRad();
-
-        calculateHoodPos(x, y, heading, drive.getVelocity());
-
-        double gearRatio = 1.0;
-
-        double wheelRPM = (flywheelSpeed * 60.0) / (Math.PI * (wheelDiameter / 4.0));
-        double motorRPM = wheelRPM * gearRatio;
-
-        double hoodPos = (maxHoodTicks - Range.scale(hoodAngle, HOOD_MIN_ANGLE, HOOD_MAX_ANGLE, 0.05, 0.8));
-
-        if (usePhysics) {
-            shooter.setTargetRPM(motorRPM);
-            outtake.aimScoring(hoodPos);
-        }
 
         telemetry.addData("loop dt (ms)", "%.3f", loopMs);
         telemetry.addData("loop avg (ms)", "%.3f", avgLoopMs);
         telemetry.addData("loop max (ms)", "%.3f", maxLoopMs);
-        telemetry.addData("Pinpoint Looptimes", drive.getPinpointLooptime());
         telemetry.addData("Cipher", cipher);
         telemetry.addData("Position", data);
-        telemetry.addData("Hood pos", hoodPos);
-        telemetry.addData("Shooter Predicted Vel",motorRPM);
         telemetry.update();
-    }
-
-    public void calculateHoodPos(double robotX, double robotY, double robotHeading, Vector robotVelocity) {
-        // Horizontal distance to goal
-        double dx = GOAL_POS_RED.getX() - robotX;
-        double dy = GOAL_POS_RED.getY() - robotY;
-        double distanceToGoal = Math.hypot(dx, dy);
-        double angleToGoal = Math.atan2(dy, dx);
-        Vector robotToGoalVector = new Vector(distanceToGoal, angleToGoal);
-
-        double g = 32.174 * 12;
-        double x = robotToGoalVector.getMagnitude() - PASS_THROUGH_POINT_RADIUS;
-        double y = SCORE_HEIGHT;
-
-        double a = SCORE_ANGLE;
-
-        //calculuate initial launch components
-        hoodAngle = MathFunctions.clamp(Math.atan(2 * y / x - Math.tan(a)), HOOD_MIN_ANGLE, HOOD_MAX_ANGLE);
-
-        flywheelSpeed = Math.sqrt(g * x * x / (2 * Math.pow(Math.cos(hoodAngle), 2) * (x * Math.tan(hoodAngle) - y)));
-
-//
-//        //get robot velocity and convert it into parallel and perpendicular components
-//        double coordinateTheta = robotVelocity.getTheta() - robotToGoalVector.getTheta();
-//
-//        double parallelComponent = -Math.cos(coordinateTheta) * robotVelocity.getMagnitude();
-//        double perpendicularComponent = Math.sin(coordinateTheta) * robotVelocity.getMagnitude();
-//
-//        //velocity compensation variables
-//        double vz = flywheelSpeed * Math.sin(hoodAngle);
-//        double time = x / (flywheelSpeed * Math.cos(hoodAngle));
-//        double ivr = x / time + parallelComponent;
-//        double nvr = Math.sqrt(ivr * ivr + perpendicularComponent * perpendicularComponent);
-//        double ndr = nvr * time;
-//
-//        //recalculuate launch components
-//        hoodAngle = MathFunctions.clamp(Math.atan(vz / nvr), HOOD_MIN_ANGLE, HOOD_MAX_ANGLE);
-//
-//        flywheelSpeed = Math.sqrt(g * ndr * ndr / (2 * Math.pow(Math.cos(hoodAngle), 2) * (ndr * Math.tan(hoodAngle) - y)));
     }
 }

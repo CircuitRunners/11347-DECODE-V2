@@ -2,15 +2,12 @@ package org.firstinspires.ftc.teamcode.subsystems.shooter;
 
 import com.acmerobotics.dashboard.config.Config;
 import com.arcrobotics.ftclib.command.SubsystemBase;
-import com.pedropathing.geometry.Pose;
-import com.pedropathing.math.MathFunctions;
-import com.pedropathing.math.Vector;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.util.Range;
 
 @Config
-public class OuttakeSubsystem extends SubsystemBase {
+public class HoodSubsystem extends SubsystemBase {
 
     private Servo hood;
 
@@ -32,7 +29,7 @@ public class OuttakeSubsystem extends SubsystemBase {
     public static double D3 = 96,  P3 = 0.46;
     public static double D4 = 120, P4 = 0.8;
 
-    public OuttakeSubsystem(HardwareMap hardwareMap) {
+    public HoodSubsystem(HardwareMap hardwareMap) {
         hood = hardwareMap.get(Servo.class, "hood");
         manualHoodPos = HOOD_SERVO_MIN;
         hood.setPosition(manualHoodPos);
@@ -51,6 +48,11 @@ public class OuttakeSubsystem extends SubsystemBase {
         double cmd = automatic ? autoHoodPos : manualHoodPos;
         cmd = Range.clip(cmd, HOOD_SERVO_MIN, HOOD_SERVO_MAX);
         hood.setPosition(cmd);
+    }
+
+    @Override
+    public void periodic() {
+        update();
     }
 
     /** Manual nudge still works when not in automatic mode. */
