@@ -18,7 +18,7 @@ import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.Pose2D;
 import org.firstinspires.ftc.teamcode.commands.CypherAprilTagTracker;
 import org.firstinspires.ftc.teamcode.commands.ShotOrderPlanner;
-import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
+import org.firstinspires.ftc.teamcode.pedroPathing.Constants12Ball;
 import org.firstinspires.ftc.teamcode.subsystems.intake.IntakeSubsystem;
 import org.firstinspires.ftc.teamcode.subsystems.shooter.OuttakeSubsystem;
 import org.firstinspires.ftc.teamcode.subsystems.shooter.ServoTurretTracker;
@@ -129,11 +129,11 @@ public class RedSideAutoClose12 extends OpMode {
                 )
                 .setLinearHeadingInterpolation(Math.toRadians(36), Math.toRadians(0))
                 .addPath(
-                        new BezierLine(new Pose(95.000, 84.000), new Pose(128.000, 84.000))
+                        new BezierLine(new Pose(95.000, 84.000), new Pose(126.000, 84.000))
                 )
                 .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(0))
                 .addPath(
-                        new BezierLine(new Pose(128.000, 84.000), new Pose(84.000, 84.000))
+                        new BezierLine(new Pose(126.000, 85.000), new Pose(84.000, 84.000))
                 )
                 .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(0))
                 .build();
@@ -141,16 +141,16 @@ public class RedSideAutoClose12 extends OpMode {
         line4 = follower
                 .pathBuilder()
                 .addPath(
-                        new BezierLine(new Pose(84.000, 84.000), new Pose(95.000, 56.000))
+                        new BezierLine(new Pose(84.000, 84.000), new Pose(92.000, 55.000))
                 )
                 .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(0))
                 .addPath(
-                        new BezierLine(new Pose(95.000, 56.000), new Pose(134.000, 56.000))
+                        new BezierLine(new Pose(92.000, 55.000), new Pose(130.000, 56.000))
                 )
                 .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(0))
                 .addPath(
                         new BezierCurve(
-                                new Pose(134.000, 56.000),
+                                new Pose(130.000, 56.000),
                                 new Pose(100,55),
                                 new Pose(100, 92.000))
                 )
@@ -160,26 +160,18 @@ public class RedSideAutoClose12 extends OpMode {
         line7 = follower
                 .pathBuilder()
                 .addPath(
-                        new BezierLine(new Pose(100.000, 92.000), new Pose(95.000, 33.000))
+                        new BezierLine(new Pose(100.000, 92.000), new Pose(93.000, 33.000))
                 )
-                .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(0))
+                .setLinearHeadingInterpolation(Math.toRadians(-30), Math.toRadians(0))
                 .addPath(
-                        new BezierLine(new Pose(95.000, 33.000), new Pose(134.000, 33.000))
+                        new BezierLine(new Pose(93.000, 33.000), new Pose(130.000, 33.000))
                 )
                 .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(0))
                 .addPath(
                         new BezierLine(
-                                new Pose(134.000, 33.000), new Pose(100, 92.000))
+                                new Pose(130.000, 33.000), new Pose(100, 122.000))
                 )
                 .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(-60))
-                .build();
-
-        line99 = follower
-                .pathBuilder()
-                .addPath(
-                        new BezierLine(new Pose(100.000, 92.000), new Pose(120.000, 85.000))
-                )
-                .setLinearHeadingInterpolation(Math.toRadians(-60), Math.toRadians(0))
                 .build();
 
     }
@@ -208,7 +200,7 @@ public class RedSideAutoClose12 extends OpMode {
 
         kickers = new Kickers(hardwareMap);
 
-        follower = Constants.createFollower(hardwareMap);
+        follower = Constants12Ball.createFollower(hardwareMap);
         follower.setStartingPose(startPose);
 
         czd = new ColourZoneDetection(hardwareMap,
@@ -316,6 +308,7 @@ public class RedSideAutoClose12 extends OpMode {
         for (LynxModule hub : hardwareMap.getAll(LynxModule.class)) {
             hub.clearBulkCache();
         }
+        autonomousPathUpdate();
 
         telemetry.addLine("=== INIT PREVIEW ===");
         telemetry.addData("Cypher Tag", cypherId);
@@ -355,7 +348,9 @@ public class RedSideAutoClose12 extends OpMode {
         else follower.resumePathFollowing();
 
         // ===================== PATH / SHOOT ORCHESTRATION =====================
-        autonomousPathUpdate();
+//        if (pathTimer.getElapsedTimeSeconds() > 29){
+//            setPathState(100);
+//        }
 
         telemetry.addLine("---- RED Side Auto Far 12 ----");
         telemetry.addData("Follower busy?", follower.isBusy());
@@ -383,9 +378,9 @@ public class RedSideAutoClose12 extends OpMode {
 
     private void setPathState(int newState) {
         pathState = newState;
-        pathTimer.resetTimer();
 
-        if (pathState != 1 && pathState != 6 && pathState != 10) {
+
+        if (pathState != 1 && pathState != 5 && pathState != 9 && pathState != 12) {
             state = RunState.IDLE;
             plannedShotsThisRun = 0;
             beamCountAtRunStart = (outtakeBeamBreak != null) ? outtakeBeamBreak.getBallCount() : 0;
@@ -412,7 +407,7 @@ public class RedSideAutoClose12 extends OpMode {
                         runStateMachine(shooter, kickers);
                     }
 
-                    if (beamRunComplete() || state == RunState.DONE || pathTimer.getElapsedTimeSeconds() > 6.0) {
+                    if (beamRunComplete() || state == RunState.DONE) {
                         setPathState(2);
                     }
 
@@ -437,7 +432,7 @@ public class RedSideAutoClose12 extends OpMode {
                         runStateMachine(shooter, kickers);
                     }
 
-                    if (beamRunComplete() || state == RunState.DONE || pathTimer.getElapsedTimeSeconds() > 6.0) {
+                    if (beamRunComplete() || state == RunState.DONE) {
                         intake();
                         setPathState(6);
                     }
@@ -454,7 +449,6 @@ public class RedSideAutoClose12 extends OpMode {
                 }
                 break;
 
-
             case 9:
                 if (!follower.isBusy()) {
                     outtake();
@@ -463,7 +457,7 @@ public class RedSideAutoClose12 extends OpMode {
                         runStateMachine(shooter, kickers);
                     }
 
-                    if (beamRunComplete() || state == RunState.DONE || pathTimer.getElapsedTimeSeconds() > 6.0) {
+                    if (beamRunComplete() || state == RunState.DONE) {
                         intake();
                         setPathState(10);
                     }
@@ -471,6 +465,7 @@ public class RedSideAutoClose12 extends OpMode {
                 break;
             case 10:
                 if (!follower.isBusy()) {
+                    RPM_MAX = 2600;
                     follower.followPath(line7);
                     setPathState(12);
                 }
@@ -484,19 +479,19 @@ public class RedSideAutoClose12 extends OpMode {
                         runStateMachine(shooter, kickers);
                     }
 
-                    if (beamRunComplete() || state == RunState.DONE || pathTimer.getElapsedTimeSeconds() > 6.0) {
+                    if (beamRunComplete() || state == RunState.DONE) {
                         intake();
-                        setPathState(99);
+                        setPathState(100);
                     }
                 }
                 break;
 
-            case 99:
-                if (!follower.isBusy()) {
-                    follower.followPath(line99, false);
-                    setPathState(100);
-                }
-                break;
+//            case 99:
+//                if (!follower.isBusy()) {
+//                    follower.followPath(line99, false);
+//                    setPathState(100);
+//                }
+//                break;
 
             case 100:
                 if (!follower.isBusy()) {

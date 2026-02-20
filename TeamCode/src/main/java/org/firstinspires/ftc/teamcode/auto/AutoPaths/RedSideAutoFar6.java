@@ -53,7 +53,7 @@ public class RedSideAutoFar6 extends OpMode {
     private ColourZoneDetection.Snapshot lastStableSnap = null;
 
     // Shooter ready gate
-    public static double SHOOTER_READY_TOL_RPM = 200.0;
+    public static double SHOOTER_READY_TOL_RPM = 100.0; //100
     public static double SHOOTER_READY_TIMEOUT_S = 0.8;
 
     // Kicker timings
@@ -61,7 +61,6 @@ public class RedSideAutoFar6 extends OpMode {
     public static double RESET_DOWN_TIME_S = 0.12;
     public static double BETWEEN_SHOTS_PAUSE_S = 0.15;
 
-    private WebcamAprilTag cypherCam;
     private CypherAprilTagTracker cypherTracker;
     private int cypherId = -1;
     private BeamBreakHelper outtakeBeamBreak;
@@ -81,7 +80,7 @@ public class RedSideAutoFar6 extends OpMode {
     public static double RPM_D4_IN = 120, RPM_P4 = 3800;
 
     public static double RPM_MIN = 0.0;
-    public static double RPM_MAX = 3800.0; //TODO: reset to 3800
+    public static double RPM_MAX = 4000.0; //TODO: reset to 3800
 
     // ===================== HARDWARE =====================
     private StaticShooter shooter;
@@ -121,22 +120,22 @@ public class RedSideAutoFar6 extends OpMode {
                 .addPath(new BezierCurve(
                         new Pose(104.000, 8.200),
                         new Pose(109.000, 20.000),
-                        new Pose(119.000, 14.000)
+                        new Pose(119.000, 13.500)
                 ))
-                .setLinearHeadingInterpolation(Math.toRadians(67), Math.toRadians(0.0))
+                .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(0.0))
                 .build();
 
         line2 = follower.pathBuilder()
                 .addPath(new BezierLine(
-                        new Pose(119.000, 14.000),
-                        new Pose(135.000, 14.000)
+                        new Pose(119.000, 13.500),
+                        new Pose(134.000, 13.500)
                 ))
                 .setLinearHeadingInterpolation(Math.toRadians(0.0), Math.toRadians(0.0))
                 .build();
 
         line3 = follower.pathBuilder()
                 .addPath(new BezierLine(
-                        new Pose(135.000, 14.000),
+                        new Pose(134.000, 14.000),
                         new Pose(119.000, 9.000)
                 ))
                 .setLinearHeadingInterpolation(Math.toRadians(0.0), Math.toRadians(0.0))
@@ -178,10 +177,9 @@ public class RedSideAutoFar6 extends OpMode {
         AlliancePresets.setAllianceShooterTag(AlliancePresets.Alliance.RED.getTagId());
 
         // Start webcam + pipeline
-        cypherCam = new WebcamAprilTag(hardwareMap, "Webcam 1");
 
         // Tracker remembers last seen 21/22/23 and writes AlliancePresets.currentCypher
-        cypherTracker = new CypherAprilTagTracker(cypherCam);
+
 
         shooter = new StaticShooter(hardwareMap, telemetry);
         shooter.setTargetRPM(0);
@@ -217,7 +215,7 @@ public class RedSideAutoFar6 extends OpMode {
         setPathState(0);
 
         telemetry.addData("Status", "Initialized");
-        telemetry.addData("Auto:", "Red Side Auto Far 9");
+        telemetry.addData("Auto:", "Red Side Auto Far 6");
         telemetry.update();
     }
 
@@ -233,9 +231,6 @@ public class RedSideAutoFar6 extends OpMode {
         }
 
         // Keep cypher tag detection during init
-        if (cypherCam != null) {
-            cypherCam.detectDuringInit();
-        }
         if (cypherTracker != null) {
             cypherId = cypherTracker.update();
             if (cypherId == 21) CIPHER = ShotOrderPlanner.Cipher.GPP;
@@ -289,7 +284,7 @@ public class RedSideAutoFar6 extends OpMode {
         if (cypherTracker != null) cypherId = cypherTracker.update();
 
         // Stop Camera
-        if (cypherCam != null) cypherCam.stopCamera();
+//        if (cypherCam != null) cypherCam.stopCamera();
 
         int id = AlliancePresets.getCurrentCypher();
         if (id == 21) CIPHER = ShotOrderPlanner.Cipher.GPP;
@@ -399,6 +394,7 @@ public class RedSideAutoFar6 extends OpMode {
                 // start moving to first pickup path
                 if (!follower.isBusy()) {
                     intake();
+                    follower.setMaxPower(0.5);
                     follower.followPath(line1);
                     setPathState(3);
                 }
@@ -407,7 +403,7 @@ public class RedSideAutoFar6 extends OpMode {
             case 3:
                 if (!follower.isBusy()) {
                     follower.followPath(line2);
-                    setPathState(4);
+                    //setPathState(4);
                 }
                 break;
 

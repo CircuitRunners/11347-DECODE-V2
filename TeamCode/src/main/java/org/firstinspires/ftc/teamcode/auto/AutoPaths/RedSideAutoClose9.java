@@ -36,13 +36,12 @@ import java.util.List;
 @Autonomous(name = "Red Side Auto Close 9", group = "Red Autos", preselectTeleOp = "MainTeleOp")
 public class RedSideAutoClose9 extends OpMode {
     // ===================== GOAL / AUTO AIM =====================
-    public static Pose TURRET_TARGET_POSE = new Pose(136, 136);   // field inches
+    public static Pose TURRET_TARGET_POSE = new Pose(138, 136);   // field inches
     public static double TURRET_TRIM_DEG = 0.0;                   // optional trim
 
     // ===================== AUTO-SORT / INDEXING =====================
     public static ShotOrderPlanner.Cipher CIPHER = ShotOrderPlanner.Cipher.PPG;
     public static boolean FORCE_SHOOT_ALL_ZONES = true;
-    private boolean cipherLocked = false;
     private ColourZoneDetection.Snapshot initSnap = null;
     private static double INIT_SNAPSHOT_HZ = 20.0; // telemetry refresh rate cap
     private final ElapsedTime initSnapTimer = new ElapsedTime();
@@ -78,7 +77,7 @@ public class RedSideAutoClose9 extends OpMode {
     public static double RPM_D4_IN = 120, RPM_P4 = 3800;
 
     public static double RPM_MIN = 0.0;
-    public static double RPM_MAX = 3100.0; //TODO: reset to 2900
+    public static double RPM_MAX = 3000.0; //TODO: reset to 2900
 
     // ===================== HARDWARE =====================
     private StaticShooter shooter;
@@ -117,7 +116,7 @@ public class RedSideAutoClose9 extends OpMode {
         line1 = follower
                 .pathBuilder()
                 .addPath(
-                        new BezierLine(new Pose(125, 120.00), new Pose(84, 84)) //82 100
+                        new BezierLine(new Pose(125, 120.00), new Pose(90, 90)) //82 100
                 )
                 .setLinearHeadingInterpolation(Math.toRadians(36), Math.toRadians(36))
                 .build();
@@ -125,7 +124,7 @@ public class RedSideAutoClose9 extends OpMode {
         line2 = follower
                 .pathBuilder()
                 .addPath(
-                        new BezierLine(new Pose(84, 84), new Pose(95, 84.000))
+                        new BezierLine(new Pose(90, 90), new Pose(95, 84.000))
                 )
                 .setLinearHeadingInterpolation(Math.toRadians(36), Math.toRadians(0))
                 .addPath(
@@ -142,11 +141,11 @@ public class RedSideAutoClose9 extends OpMode {
                 )
                 .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(0))
                 .addPath(
-                        new BezierLine(new Pose(118.000, 84.000), new Pose(124.000, 84.000))
+                        new BezierLine(new Pose(118.000, 84.000), new Pose(123.000, 86.000))
                 )
                 .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(0))
                 .addPath(
-                        new BezierLine(new Pose(128.000, 84.000), new Pose(84.000, 84.000))
+                        new BezierLine(new Pose(123.000, 86.000), new Pose(84.000, 84.000))
                 )
                 .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(0))
                 .build();
@@ -180,29 +179,17 @@ public class RedSideAutoClose9 extends OpMode {
                 .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(0))
                 .addPath(
                         new BezierCurve(
-                                new Pose(134.000, 56.000),
+                                new Pose(130.000, 56.000),
                                 new Pose(100,55),
                                 new Pose(100, 92.000))
                 )
                 .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(-30))
                 .build();
 
-//        line7 = follower
-//                .pathBuilder()
-//                .addPath(
-//                        new BezierCurve(
-//                                new Pose(133.500, 60.000),
-//                                new Pose(98.000, 64.000),//80
-//                                new Pose(100.000, 100.000)
-//                        )
-//                )
-//                .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(0))
-//                .build();
-
         line8 = follower
                 .pathBuilder()
                 .addPath(
-                        new BezierLine(new Pose(100.000, 92.000), new Pose(120.000, 85.000))
+                        new BezierLine(new Pose(100.000, 92.000), new Pose(120.000, 90.000))
                 )
                 .setLinearHeadingInterpolation(Math.toRadians(-30), Math.toRadians(0))
                 .build();
@@ -217,10 +204,6 @@ public class RedSideAutoClose9 extends OpMode {
         }
 
         AlliancePresets.setAllianceShooterTag(AlliancePresets.Alliance.RED.getTagId());
-
-        // Start webcam + pipelin
-
-        // Tracker remembers last seen 21/22/23 and writes AlliancePresets.currentCypher
 
         shooter = new StaticShooter(hardwareMap, telemetry);
         shooter.setTargetRPM(0);
@@ -423,7 +406,7 @@ public class RedSideAutoClose9 extends OpMode {
             case 0:
                 // ensure stopped at start
                 if (!follower.isBusy()) {
-                    RPM_MAX = 3100;
+                    RPM_MAX = 3000;
                     follower.setMaxPower(1);
                     follower.followPath(line1);
                     setPathState(1);
@@ -457,6 +440,7 @@ public class RedSideAutoClose9 extends OpMode {
                 if (!follower.isBusy()) {
                     follower.setMaxPower(0.5);
                     intake();
+                    RPM_MAX = 3100.0;
                     follower.followPath(line2);
                     setPathState(3);
                 }
