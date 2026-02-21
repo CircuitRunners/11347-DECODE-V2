@@ -33,8 +33,8 @@ import java.util.List;
 
 @Config
 @Configurable
-@Autonomous(name = "Red Side Auto Far 9", group = "Red Autos", preselectTeleOp = "MainTeleOp")
-public class RedSideAutoFar9 extends OpMode {
+@Autonomous(name = "Red Side Auto Far 12", group = "Red Autos", preselectTeleOp = "MainTeleOp")
+public class RedSideAutoFar12 extends OpMode {
 
     // ===================== GOAL / AUTO AIM =====================
     public static Pose TURRET_TARGET_POSE = new Pose(138, 136);   // field inches
@@ -110,7 +110,7 @@ public class RedSideAutoFar9 extends OpMode {
     private int pathState = 0;
 
     private final Pose startPose = new Pose(81.5, 9.3, Math.toRadians(0));
-    private PathChain line1, line2, line3, line4, line5, line6, line7;
+    private PathChain line1, line2, line3, line4, line5, line6, line7,line8, line100;
 
     // ===================== BUILD PATHS =====================
     private void buildPaths() {
@@ -192,7 +192,40 @@ public class RedSideAutoFar9 extends OpMode {
                 ))
                 .setLinearHeadingInterpolation(Math.toRadians(270), Math.toRadians(30.0))
                 .build();
-        line7 = follower.pathBuilder()
+        line7 = follower
+                .pathBuilder()
+                .addPath(
+                        new BezierLine(new Pose(92.000, 16.000), new Pose(95.000, 56.000))
+                )
+                .setLinearHeadingInterpolation(Math.toRadians(30), Math.toRadians(0))
+                .addPath(
+                        new BezierLine(new Pose(95.000, 56.000), new Pose(134.000, 56.000))
+                )
+                .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(0))
+
+                .build();
+
+        line8 = follower
+                .pathBuilder()
+                .addPath(
+                        new BezierLine(new Pose(134.000, 56.000), new Pose(124.000, 56.000))
+                )
+                .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(0))
+                .addPath(
+                        new BezierLine(new Pose(124.000, 56.000), new Pose(130.000, 56.000))
+                )
+                .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(0))
+                .addPath(
+                        new BezierLine(new Pose(124.000, 56.000), new Pose(130.000, 56.000))
+                )
+                .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(0))
+                .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(0))
+                .addPath(
+                        new BezierLine(new Pose(130.000, 56.000), new Pose(92.000, 16.000))
+                )
+                .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(30))
+                .build();
+        line100 = follower.pathBuilder()
                 .addPath(new BezierLine(
                         new Pose(92.000, 16.000),
                         new Pose(135.000, 30.000)
@@ -244,7 +277,7 @@ public class RedSideAutoFar9 extends OpMode {
         setPathState(0);
 
         telemetry.addData("Status", "Initialized");
-        telemetry.addData("Auto:", "Red Side Auto Far 9");
+        telemetry.addData("Auto:", "Red Side Auto Far 12");
         telemetry.update();
     }
 
@@ -364,7 +397,7 @@ public class RedSideAutoFar9 extends OpMode {
         // ===================== PATH / SHOOT ORCHESTRATION =====================
         autonomousPathUpdate();
 
-        telemetry.addLine("---- RED Side Auto Far 9 ----");
+        telemetry.addLine("---- RED Side Auto Far 12 ----");
         telemetry.addData("Follower busy?", follower.isBusy());
         telemetry.addData("Path State", pathState);
         telemetry.addData("Shot State", state);
@@ -430,7 +463,7 @@ public class RedSideAutoFar9 extends OpMode {
 
             case 3:
                 if (!follower.isBusy()) {
-                    follower.setMaxPower(0.55);
+                    follower.setMaxPower(1);
                     follower.followPath(line2);
                     setPathState(4);
                 }
@@ -448,10 +481,8 @@ public class RedSideAutoFar9 extends OpMode {
             case 5:
                 if (!follower.isBusy()) {
                     outtake();
-                    if (shooter.isAtTargetThreshold()) {
                         BeginShotSequenceIfIdle();
                         runStateMachine(shooter, kickers);
-                    }
 
                     if (beamRunComplete() || state == RunState.DONE || pathTimer.getElapsedTimeSeconds() > 6.0) {
                         setPathState(6);
@@ -463,7 +494,7 @@ public class RedSideAutoFar9 extends OpMode {
                 // Go back to shoot position
                 if (!follower.isBusy()) {
                     intake();
-                    follower.setMaxPower(0.8);
+                    follower.setMaxPower(1);
                     follower.followPath(line4);
                     setPathState(7);
                 }
@@ -472,7 +503,7 @@ public class RedSideAutoFar9 extends OpMode {
             case 7:
                 // Go back to shoot position
                 if (!follower.isBusy()) {
-                    follower.setMaxPower(0.85);
+                    follower.setMaxPower(1);
                     intake();
                     follower.followPath(line5);
                     setPathState(8);
@@ -497,14 +528,47 @@ public class RedSideAutoFar9 extends OpMode {
                         }
 
                    if (beamRunComplete() || state == RunState.DONE) {
-                       stopIntake();
-                        setPathState(99);
+                       //stopIntake();
+                        setPathState(10);
                    }
+                }
+                break;
+            case 10:
+                /// Go back to shoot position
+                if (!follower.isBusy()) {
+                    intake();
+                    follower.setMaxPower(1);
+                    follower.followPath(line7);
+
+                    setPathState(11);
+                }
+                break;
+            case 11:
+                /// Go back to shoot position
+                if (!follower.isBusy()) {
+                    follower.setMaxPower(1);
+                    follower.followPath(line8);
+
+                    setPathState(12);
+                }
+                break;
+            case 12:
+                if (!follower.isBusy()) {
+                    outtake();
+                    if (shooter.isAtTargetThreshold()) {
+                        BeginShotSequenceIfIdle();
+                        runStateMachine(shooter, kickers);
+                    }
+
+                    if (beamRunComplete() || state == RunState.DONE) {
+                        stopIntake();
+                        setPathState(99);
+                    }
                 }
                 break;
             case 99:
                 if (!follower.isBusy()) {
-                    follower.followPath(line7, false);
+                    follower.followPath(line100, false);
                     setPathState(100);
                 }
                 break;
