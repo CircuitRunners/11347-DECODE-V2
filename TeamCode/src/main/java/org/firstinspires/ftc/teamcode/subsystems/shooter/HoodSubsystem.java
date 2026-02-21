@@ -8,7 +8,6 @@ import com.qualcomm.robotcore.util.Range;
 
 @Config
 public class HoodSubsystem extends SubsystemBase {
-
     private Servo hood;
 
     // Manual
