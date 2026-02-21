@@ -56,7 +56,7 @@ public class RedSideAutoFar12 extends OpMode {
     // Kicker timings
     public static double KICK_UP_TIME_S = 0.30;
     public static double RESET_DOWN_TIME_S = 0.12;
-    public static double BETWEEN_SHOTS_PAUSE_S = 0.15;
+    public static double BETWEEN_SHOTS_PAUSE_S = 0.67;
 
     private int cypherId = -1;
     private BeamBreakHelper outtakeBeamBreak;
@@ -76,7 +76,7 @@ public class RedSideAutoFar12 extends OpMode {
     public static double RPM_D4_IN = 120, RPM_P4 = 3800;
 
     public static double RPM_MIN = 0.0;
-    public static double RPM_MAX = 4000.0; //TODO: reset to 3800
+    private double RPM_MAX = 4700.0; //TODO: reset to 3800
 
     // ===================== HARDWARE =====================
     private StaticShooter shooter;
@@ -173,16 +173,6 @@ public class RedSideAutoFar12 extends OpMode {
                 .build();
 
         line6 = follower.pathBuilder()
-//                .addPath(new BezierLine(
-//                        new Pose(135.000, 10.000),
-//                        new Pose(125.000, 18.000)
-//                ))
-//                .setLinearHeadingInterpolation(Math.toRadians(270), Math.toRadians(270))
-//                .addPath(new BezierLine(
-//                        new Pose(125.000, 18.000),
-//                        new Pose(125.000, 10.000)
-//                ))
-//                .setLinearHeadingInterpolation(Math.toRadians(270), Math.toRadians(270))
                 .addPath(new BezierCurve(
                         new Pose(135.000, 10.00),
                         new Pose(115.000, 30.00),
@@ -192,34 +182,28 @@ public class RedSideAutoFar12 extends OpMode {
                 .build();
         line7 = follower.pathBuilder()
                 .addPath(new BezierLine(
-                        new Pose(92.000, 16.000),
-                        new Pose(135.000, 30.000)
+                        new Pose(92.000, 16.00),
+                        new Pose(95.000, 24.00)
                 ))
-                .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(270))
-                .addPath(new BezierLine(
-                        new Pose(135.000, 30.000),
-                        new Pose(135.000, 10.000)
-                ))
-                .setLinearHeadingInterpolation(Math.toRadians(270), Math.toRadians(270))
+                .setLinearHeadingInterpolation(Math.toRadians(30), Math.toRadians(0.0))
+                .addPath(
+                        new BezierLine(
+                                new Pose(95.000, 24.000),
+
+                                new Pose(134.000, 25.000)
+                        )
+                ).setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(0))
                 .build();
 
         line8 = follower.pathBuilder()
-                .addPath(new BezierLine(
-                        new Pose(135.000, 10.000),
-                        new Pose(125.000, 18.000)
-                ))
-                .setLinearHeadingInterpolation(Math.toRadians(270), Math.toRadians(270))
-                .addPath(new BezierLine(
-                        new Pose(125.000, 18.000),
-                        new Pose(125.000, 10.000)
-                ))
-                .setLinearHeadingInterpolation(Math.toRadians(270), Math.toRadians(270))
-                .addPath(new BezierCurve(
-                        new Pose(125.000, 10.00),
-                        new Pose(115.000, 30.00),
-                        new Pose(92.000, 16.000)
-                ))
-                .setLinearHeadingInterpolation(Math.toRadians(270), Math.toRadians(30.0))
+                .addPath(
+
+                        new BezierLine(
+                                new Pose(134.000, 25.000),
+
+                                new Pose(92.000, 16.000)
+                        )
+                ).setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(30))
                 .build();
 
         line100 = follower.pathBuilder()
@@ -422,6 +406,7 @@ public class RedSideAutoFar12 extends OpMode {
 
             case 1:
                 if (shooter.isAtTargetThreshold()) {
+                    RPM_MAX = 4000;
                     BeginShotSequenceIfIdle();
                     runStateMachine(shooter, kickers);
                 }
@@ -461,10 +446,13 @@ public class RedSideAutoFar12 extends OpMode {
             case 5:
                 if (!follower.isBusy()) {
                     outtake();
-                    BeginShotSequenceIfIdle();
-                    runStateMachine(shooter, kickers);
+                    if (shooter.getShooterVelocity() > 2000) {
+                        BeginShotSequenceIfIdle();
+                        runStateMachine(shooter, kickers);
+                    }
 
-                    if (beamRunComplete() || state == RunState.DONE || pathTimer.getElapsedTimeSeconds() > 6.0) {
+                    if (beamRunComplete() || state == RunState.DONE) {
+                        //stopIntake();
                         setPathState(6);
                     }
                 }
@@ -529,7 +517,7 @@ public class RedSideAutoFar12 extends OpMode {
                     follower.setMaxPower(1);
                     follower.followPath(line8);
 
-                    //setPathState(12);
+                    setPathState(12);
                 }
                 break;
             case 12:
