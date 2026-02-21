@@ -37,8 +37,8 @@ import java.util.List;
 
 @Config
 @Configurable
-@Autonomous(name = "Red Side Auto Far 6 (Blob Chase Drop-in)", group = "Red Autos", preselectTeleOp = "MainTeleOp")
-public class RedSideAutoFar6 extends OpMode {
+@Autonomous(name = "Blob Chase Red Far", group = "Red Autos", preselectTeleOp = "MainTeleOpRED")
+public class BlobDetectionRedFar extends OpMode {
 
     // ===================== GOAL / AUTO AIM =====================
     public static Pose TURRET_TARGET_POSE = new Pose(140, 136);

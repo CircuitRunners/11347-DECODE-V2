@@ -13,7 +13,8 @@ class TurretAutoAim(
     private val drive : MecanumDrivebase,
     private val turret : ServoTurretTracker,
     private val odoHeading : OdoAbsoluteHeadingTracking,
-    private val turretTargetPose : Pose
+    private val turretTargetPose : Pose,
+    private val isRed : Boolean
 ) : CommandBase() {
     init {
         addRequirements(turret)
@@ -43,7 +44,13 @@ class TurretAutoAim(
         var gx : Double = targetX
         val gy : Double = targetY
 
-        if (y < 60) gx -= 4
+        if (y < 60) {
+            if (isRed) {
+                gx -= 2
+            } else {
+                gx += 4
+            }
+        }
 
         turret.setTargetFieldPointInches(gx, gy)
         turret.update(turretPose)

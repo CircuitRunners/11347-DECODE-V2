@@ -42,6 +42,7 @@ public class MainTeleOpRed extends CommandOpMode {
 
     // ============ Software ============
     private GamepadEx driver;
+    private GamepadEx reseter;
     private ColourZoneDetection czd;
     private GobildaRGBIndicatorHelper rgb;
     private OdoAbsoluteHeadingTracking odoHeading;
@@ -57,8 +58,8 @@ public class MainTeleOpRed extends CommandOpMode {
     private double maxLoopMs = 0;
     private int loopCount = 0;
 
-    // ============ Physics ============ 
-    private final Pose GOAL_POS_RED = new Pose(138, 138); //138, 138
+    // ============ Physics ============
+    private final Pose GOAL_POS_RED = new Pose(140, 138); //138, 138
     private final Pose GOAL_POS_BLUE = new Pose(-4, 136);
     private final double SCORE_ANGLE = Math.toRadians(-30);
     public static double HOOD_MAX_ANGLE = Math.toRadians(67);
@@ -81,6 +82,7 @@ public class MainTeleOpRed extends CommandOpMode {
 
         // ============ Software ============
         driver = new GamepadEx(gamepad1);
+        reseter = new GamepadEx(gamepad2);
         czd = new ColourZoneDetection(hardwareMap,
                 "z1CSa", "z2CSa", "z3CSa",
                 "z1CSb", "z2CSb", "z3CSb");
@@ -99,31 +101,25 @@ public class MainTeleOpRed extends CommandOpMode {
         drive.setDefaultCommand(new DriveCommand(drive, driver, isRed));
         intake.setDefaultCommand(new IntakeCommand(intake, driver, czd, rgb));
 
-        driver.getGamepadButton(GamepadKeys.Button.RIGHT_BUMPER)
-                .whenPressed(new InstantCommand(() -> {
-                    isActive = !isActive;
-                    shooter.setTargetRPM(isActive ? 2500 : 0);
-                }));
-
-        driver.getGamepadButton(GamepadKeys.Button.DPAD_LEFT)
+        reseter.getGamepadButton(GamepadKeys.Button.DPAD_LEFT)
                 .whenPressed(new InstantCommand(()->
                         drive.setPose(new Pose(72,72, drive.getPose().getHeading()))
                 ));
 
-        driver.getGamepadButton(GamepadKeys.Button.DPAD_DOWN)
+        reseter.getGamepadButton(GamepadKeys.Button.DPAD_DOWN)
                 .whenPressed(new InstantCommand(()->
                         drive.setPose(new Pose(72, 16, drive.getPose().getHeading()))
                 ));
 
-        driver.getGamepadButton(GamepadKeys.Button.DPAD_RIGHT)
+        reseter.getGamepadButton(GamepadKeys.Button.DPAD_RIGHT)
                 .whenPressed(new InstantCommand(()->
                         drive.setPose(new Pose(isRed ? 126 : 17, 69, drive.getPose().getHeading()))
                 ));
 
-        driver.getGamepadButton(GamepadKeys.Button.B)
+        reseter.getGamepadButton(GamepadKeys.Button.B)
                 .whenPressed(new InstantCommand(()-> {
-                    drive.setPose(new Pose(drive.getPose().getX(), drive.getPose().getY(), Math.toRadians(isRed ? 0.0 : 180)));
-                    odoHeading.reset(Math.toRadians(isRed ? 0.0 : 180));
+                    drive.setPose(new Pose(drive.getPose().getX(), drive.getPose().getY(), Math.toRadians(0.0)));
+                    odoHeading.reset(Math.toRadians(0.0));
                 }));
 
         driver.getGamepadButton(GamepadKeys.Button.LEFT_BUMPER)
@@ -150,7 +146,7 @@ public class MainTeleOpRed extends CommandOpMode {
                         )),
                 new PerpetualCommand(
                         new TurretAutoAim(
-                                drive, turret, odoHeading, TARGET_GOAL_POSE
+                                drive, turret, odoHeading, TARGET_GOAL_POSE, true
                         ))
         );
 
