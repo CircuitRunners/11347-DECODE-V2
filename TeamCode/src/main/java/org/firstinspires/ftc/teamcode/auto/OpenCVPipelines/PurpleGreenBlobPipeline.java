@@ -8,17 +8,18 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class PurpleGreenBlobPipeline extends OpenCvPipeline {
-    public static boolean ROTATE_CW = true;
+    public static boolean ROTATE_CW = true; // (unused now, kept so nothing else breaks)
 
     public static double MIN_AREA = 800;
     public static double MIN_GREEN_FRAC = 0.08;
     public static double MIN_PURPLE_FRAC = 0.08;
 
     // Tune per venue/camera
-    public static Scalar GREEN_LO = new Scalar(35, 80, 60);
+    public static Scalar GREEN_LO = new Scalar(35, 60, 30);
+    //public static Scalar GREEN_LO = new Scalar(35, 80, 60);
     public static Scalar GREEN_HI = new Scalar(95, 255, 255);
-
-    public static Scalar PURPLE_LO = new Scalar(120, 60, 40);
+    public static Scalar PURPLE_LO = new Scalar(120, 50, 25);
+    //public static Scalar PURPLE_LO = new Scalar(120, 60, 40);
     public static Scalar PURPLE_HI = new Scalar(170, 255, 255);
 
     // Optional second purple band if needed (set lo=hi to disable)
@@ -30,7 +31,6 @@ public class PurpleGreenBlobPipeline extends OpenCvPipeline {
     public volatile double cyNorm = 0.0; // [0..1]
     public volatile double area = 0.0;
 
-    private final Mat rotated = new Mat();
     private final Mat rgb = new Mat();
     private final Mat hsv = new Mat();
 
@@ -44,17 +44,13 @@ public class PurpleGreenBlobPipeline extends OpenCvPipeline {
 
     @Override
     public Mat processFrame(Mat input) {
-        // Rotate image to normalize orientation
-        if (ROTATE_CW) Core.rotate(input, rotated, Core.ROTATE_90_CLOCKWISE);
-        else Core.rotate(input, rotated, Core.ROTATE_90_COUNTERCLOCKWISE);
 
         // Convert to RGB then HSV (EasyOpenCV often provides RGBA)
-        Imgproc.cvtColor(rotated, rgb, Imgproc.COLOR_RGBA2RGB);
+        Imgproc.cvtColor(input, rgb, Imgproc.COLOR_RGBA2RGB);
         Imgproc.cvtColor(rgb, hsv, Imgproc.COLOR_RGB2HSV);
 
         // Masks
         Core.inRange(hsv, GREEN_LO, GREEN_HI, greenMask);
-
         Core.inRange(hsv, PURPLE_LO, PURPLE_HI, purpleMask1);
 
         boolean usePurple2 = !isDisabledRange(PURPLE2_LO, PURPLE2_HI);
@@ -109,15 +105,15 @@ public class PurpleGreenBlobPipeline extends OpenCvPipeline {
             double cx = bestRect.x + bestRect.width / 2.0;
             double cy = bestRect.y + bestRect.height / 2.0;
 
-            int W = rotated.cols();
-            int H = rotated.rows();
+            int W = input.cols();
+            int H = input.rows();
 
             cxNorm = (cx - W / 2.0) / (W / 2.0);
             cyNorm = (cy / (double) H);
 
             // Debug draw
-            Imgproc.rectangle(rotated, bestRect, new Scalar(0, 255, 0), 2);
-            Imgproc.circle(rotated, new Point(cx, cy), 4, new Scalar(255, 0, 0), -1);
+            Imgproc.rectangle(input, bestRect, new Scalar(0, 255, 0), 2);
+            Imgproc.circle(input, new Point(cx, cy), 4, new Scalar(255, 0, 0), -1);
         } else {
             hasTarget = false;
             area = 0;
@@ -125,7 +121,7 @@ public class PurpleGreenBlobPipeline extends OpenCvPipeline {
             cyNorm = 0;
         }
 
-        return rotated;
+        return input;
     }
 
     private boolean isDisabledRange(Scalar lo, Scalar hi) {

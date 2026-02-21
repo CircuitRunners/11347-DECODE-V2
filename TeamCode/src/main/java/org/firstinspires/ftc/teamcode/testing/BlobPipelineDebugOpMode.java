@@ -14,8 +14,8 @@ public class BlobPipelineDebugOpMode extends OpMode {
     public static Alliance ALLIANCE = Alliance.RED; // change as needed
 
     // Which webcam config name to use
-    public static String WEBCAM_NAME_RED  = "Webcam 1"; // set to your C920 config name
-    public static String WEBCAM_NAME_BLUE = "Webcam 2"; // set to your C270 config name
+    public static String WEBCAM_NAME_RED  = "RedWebcam"; // set to your C920 config name
+    public static String WEBCAM_NAME_BLUE = "BlueWebcom"; // set to your C270 config name
 
     // Classification tuning
     public static double CENTER_DEADBAND = 0.15;  // cxNorm in [-0.15..+0.15] => CENTER
@@ -52,7 +52,7 @@ public class BlobPipelineDebugOpMode extends OpMode {
         camera.openCameraDeviceAsync(new OpenCvCamera.AsyncCameraOpenListener() {
             @Override
             public void onOpened() {
-                camera.startStreaming(STREAM_W, STREAM_H, OpenCvCameraRotation.UPRIGHT);
+                camera.startStreaming(STREAM_W, STREAM_H, OpenCvCameraRotation.SIDEWAYS_LEFT);
             }
 
             @Override
