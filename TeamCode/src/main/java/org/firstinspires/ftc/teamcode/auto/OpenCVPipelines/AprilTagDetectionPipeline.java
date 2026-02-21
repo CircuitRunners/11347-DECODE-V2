@@ -6,7 +6,7 @@
 // - Keep Tag family 36h11 (same as your current code)
 // - tagsize is meters (0.1016 for 4")
 
-package org.firstinspires.ftc.teamcode.auto.AprilTag;
+package org.firstinspires.ftc.teamcode.auto.OpenCVPipelines;
 
 import org.opencv.calib3d.Calib3d;
 import org.opencv.core.CvType;

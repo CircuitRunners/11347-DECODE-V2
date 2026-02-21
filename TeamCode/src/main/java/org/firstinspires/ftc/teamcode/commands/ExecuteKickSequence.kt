@@ -18,19 +18,27 @@ class ExecuteKickSequence(
     private val kickUpTimeS: Double = 0.18,
     private val resetTimeS: Double = 0.12
 ) : SequentialCommandGroup() {
-    override fun initialize() {
-        val plan = planProvider()
 
-        val seq = ArrayList<Command>(plan.size * 4)
-        for (shot in plan) {
-            val zone: ColourZoneDetection.ZoneId = shot.zone
-            seq += ZoneKickCommand(kickers, zone, true)
-            seq += WaitCommand((kickUpTimeS * 1000.0).toLong())
-            seq += ZoneKickCommand(kickers, zone, false)
-            seq += WaitCommand((resetTimeS * 1000.0).toLong())
+    private var built = false
+
+    override fun initialize() {
+        if (!built) {
+            built = true
+
+            val plan = planProvider()
+            val seq = ArrayList<Command>(plan.size * 4)
+
+            for (shot in plan) {
+                val zone = shot.zone
+                seq += ZoneKickCommand(kickers, zone, true)
+                seq += WaitCommand((kickUpTimeS * 1000.0).toLong())
+                seq += ZoneKickCommand(kickers, zone, false)
+                seq += WaitCommand((resetTimeS * 1000.0).toLong())
+            }
+
+            if (seq.isNotEmpty()) addCommands(*seq.toTypedArray())
         }
 
-        if (seq.isNotEmpty()) addCommands(*seq.toTypedArray())
         super.initialize()
     }
 }

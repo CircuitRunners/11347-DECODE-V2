@@ -30,8 +30,8 @@ import org.firstinspires.ftc.teamcode.support.OdoAbsoluteHeadingTracking;
 import java.util.Locale;
 
 @Config
-@TeleOp(name="MainTeleOp", group="1")
-public class MainTeleOppt2 extends CommandOpMode {
+@TeleOp(name="MainTeleOpRED", group="1")
+public class MainTeleOpRed extends CommandOpMode {
     // ============ Hardware ============
     private MecanumDrivebase drive;
     private StaticShooter shooter;
@@ -107,7 +107,22 @@ public class MainTeleOppt2 extends CommandOpMode {
 
         driver.getGamepadButton(GamepadKeys.Button.DPAD_LEFT)
                 .whenPressed(new InstantCommand(()->
-                        drive.setPose(new Pose(72,72, Math.toRadians(0)))
+                        drive.setPose(new Pose(72,72, drive.getPose().getHeading()))
+                ));
+
+        driver.getGamepadButton(GamepadKeys.Button.DPAD_DOWN)
+                .whenPressed(new InstantCommand(()->
+                        drive.setPose(new Pose(72, 16, drive.getPose().getHeading()))
+                ));
+
+        driver.getGamepadButton(GamepadKeys.Button.DPAD_RIGHT)
+                .whenPressed(new InstantCommand(()->
+                        drive.setPose(new Pose(isRed ? 126 : 17, 69, drive.getPose().getHeading()))
+                ));
+
+        driver.getGamepadButton(GamepadKeys.Button.B)
+                .whenPressed(new InstantCommand(()->
+                        drive.setPose(new Pose(drive.getPose().getX(), drive.getPose().getY(), Math.toRadians(isRed ? 0.0 : 180)))
                 ));
 
         driver.getGamepadButton(GamepadKeys.Button.LEFT_BUMPER)

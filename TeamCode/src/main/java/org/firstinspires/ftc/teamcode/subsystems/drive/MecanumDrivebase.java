@@ -77,7 +77,7 @@ public class MecanumDrivebase extends SubsystemBase {
 
         Pose pos = follower.getPose();
 
-        double robotAngle = !reverseHeading ? pos.getHeading() : pos.getHeading() - Math.toRadians(180);
+        double robotAngle = reverseHeading ? pos.getHeading() : pos.getHeading() - Math.toRadians(180);
         double theta = Math.atan2(forward, right);
         double r = Math.hypot(forward, right);
         theta = AngleUnit.normalizeRadians(theta - robotAngle);

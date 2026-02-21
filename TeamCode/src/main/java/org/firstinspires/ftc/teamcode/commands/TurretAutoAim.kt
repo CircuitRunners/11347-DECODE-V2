@@ -36,16 +36,12 @@ class TurretAutoAim(
             AngleUnit.RADIANS,
             h
         )
-        var gx : Double
-        var gy : Double
 
-        if (y < 76) {
-            gx = turretTargetPose.x
-            gy = turretTargetPose.y
-        } else {
-            gx = turretTargetPose.x - 4
-            gy = turretTargetPose.y
-        }
+        val targetX : Double = turretTargetPose.x
+        val targetY : Double = turretTargetPose.y
+
+        val gx : Double = targetX
+        val gy : Double = targetY
 
         turret.setTargetFieldPointInches(gx, gy)
         turret.update(turretPose)
