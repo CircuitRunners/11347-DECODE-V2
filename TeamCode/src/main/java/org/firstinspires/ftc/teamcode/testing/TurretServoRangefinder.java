@@ -25,7 +25,7 @@ public class TurretServoRangefinder extends CommandOpMode {
         turret = hardwareMap.get(Servo.class, "turret");
         turret.setPosition(pose);
 
-        drive = new MecanumDrivebase(hardwareMap, isRed);
+        drive = new MecanumDrivebase(hardwareMap, isRed, false);
 
         telemetry.addLine("initDone");
         telemetry.update();

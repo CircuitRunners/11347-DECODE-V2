@@ -40,8 +40,10 @@ class TurretAutoAim(
         val targetX : Double = turretTargetPose.x
         val targetY : Double = turretTargetPose.y
 
-        val gx : Double = targetX
+        var gx : Double = targetX
         val gy : Double = targetY
+
+        if (y < 60) gx -= 4
 
         turret.setTargetFieldPointInches(gx, gy)
         turret.update(turretPose)

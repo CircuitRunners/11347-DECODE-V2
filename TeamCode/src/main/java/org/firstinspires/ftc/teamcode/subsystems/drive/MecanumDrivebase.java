@@ -24,16 +24,25 @@ public class MecanumDrivebase extends SubsystemBase {
     public DcMotorEx backRightMotor;
     private Follower follower;
     private boolean isRed = false;
+    private boolean isAuto = false;
 
-    public MecanumDrivebase(HardwareMap hardwareMap, boolean isRed) {
+    public MecanumDrivebase(HardwareMap hardwareMap, boolean isRed, boolean isAuto) {
+        this(hardwareMap, isRed, isAuto, Constants.createFollower(hardwareMap));
+    }
+
+    public MecanumDrivebase(HardwareMap hardwareMap, boolean isRed, boolean isAuto, Follower follower) {
         frontLeftMotor = hardwareMap.get(DcMotorEx.class, "fl");
         frontRightMotor = hardwareMap.get(DcMotorEx.class, "fr");
         backLeftMotor = hardwareMap.get(DcMotorEx.class, "bl");
         backRightMotor = hardwareMap.get(DcMotorEx.class, "br");
 
-        follower = Constants.createFollower(hardwareMap);
+        this.follower = follower;
         this.isRed = isRed;
-        setStartingPose();
+        this.isAuto = isAuto;
+
+        if (!isAuto) {
+            setStartingPose();
+        }
 
         frontLeftMotor.setDirection(DcMotorSimple.Direction.REVERSE);
         backLeftMotor.setDirection(DcMotorSimple.Direction.REVERSE);
@@ -72,7 +81,7 @@ public class MecanumDrivebase extends SubsystemBase {
         setPowers(frontLeftPower, frontRightPower, backLeftPower, backRightPower);
     }
 
-    public void driveFieldRelative(double forward, double right, double rotate, boolean reverseHeading) {
+    public void driveFieldRelative(double forward, double right, double rotate, boolean reverseHeading, Follower follower) {
         follower.update();
 
         Pose pos = follower.getPose();
@@ -86,6 +95,10 @@ public class MecanumDrivebase extends SubsystemBase {
         double newRight     = r * Math.cos(theta);
 
         drive(newForward, newRight, rotate);
+    }
+
+    public void driveFieldRelative(double forward, double right, double rotate, boolean reverseHeading) {
+        driveFieldRelative(forward, right, rotate, reverseHeading, follower);
     }
 
     public Pose getPose() {

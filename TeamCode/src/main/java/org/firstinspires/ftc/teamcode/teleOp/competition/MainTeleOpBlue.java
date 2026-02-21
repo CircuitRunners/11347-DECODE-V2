@@ -12,8 +12,8 @@ import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import org.firstinspires.ftc.teamcode.auto.BulkCacheCommand;
 import org.firstinspires.ftc.teamcode.commands.AutoSortAndExecute;
 import org.firstinspires.ftc.teamcode.commands.CalculateHoodPoseAndVelocity;
-import org.firstinspires.ftc.teamcode.commands.IntakeCommand;
 import org.firstinspires.ftc.teamcode.commands.DriveCommand;
+import org.firstinspires.ftc.teamcode.commands.IntakeCommand;
 import org.firstinspires.ftc.teamcode.commands.ShotOrderPlanner;
 import org.firstinspires.ftc.teamcode.commands.TurretAutoAim;
 import org.firstinspires.ftc.teamcode.subsystems.drive.MecanumDrivebase;
@@ -30,8 +30,8 @@ import org.firstinspires.ftc.teamcode.support.OdoAbsoluteHeadingTracking;
 import java.util.Locale;
 
 @Config
-@TeleOp(name="MainTeleOpRED", group="1")
-public class MainTeleOpRed extends CommandOpMode {
+@TeleOp(name="MainTeleOpBLUE", group="1")
+public class MainTeleOpBlue extends CommandOpMode {
     // ============ Hardware ============
     private MecanumDrivebase drive;
     private StaticShooter shooter;
@@ -90,7 +90,7 @@ public class MainTeleOpRed extends CommandOpMode {
                 intake.rightOdoMotor()
         );
 
-        AlliancePresets.setAllianceShooterTag(AlliancePresets.Alliance.RED.getTagId());
+        AlliancePresets.setAllianceShooterTag(AlliancePresets.Alliance.BLUE.getTagId());
         isRed = AlliancePresets.getAllianceShooterTag() == AlliancePresets.Alliance.RED.getTagId();
 
         Pose TARGET_GOAL_POSE = isRed ? GOAL_POS_RED : GOAL_POS_BLUE;
