@@ -138,12 +138,12 @@ public class RedSideAutoFar12 extends OpMode {
                         new BezierLine(
                                 new Pose(134.000, 35.000),
 
-                                new Pose(128.000, 35.000)
+                                new Pose(131.000, 35.000)
                         )
                 ).setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(0))
                 .addPath(
                         new BezierLine(
-                                new Pose(128.000, 35.000),
+                                new Pose(131.000, 35.000),
 
                                 new Pose(134.000, 35.000)
                         )
@@ -175,6 +175,37 @@ public class RedSideAutoFar12 extends OpMode {
                 .build();
 
         line6 = follower.pathBuilder()
+//                .addPath(new BezierLine(
+//                        new Pose(135.000, 10.000),
+//                        new Pose(125.000, 18.000)
+//                ))
+//                .setLinearHeadingInterpolation(Math.toRadians(270), Math.toRadians(270))
+//                .addPath(new BezierLine(
+//                        new Pose(125.000, 18.000),
+//                        new Pose(125.000, 10.000)
+//                ))
+//                .setLinearHeadingInterpolation(Math.toRadians(270), Math.toRadians(270))
+                .addPath(new BezierCurve(
+                        new Pose(135.000, 10.00),
+                        new Pose(115.000, 30.00),
+                        new Pose(92.000, 16.000)
+                ))
+                .setLinearHeadingInterpolation(Math.toRadians(270), Math.toRadians(30.0))
+                .build();
+        line7 = follower.pathBuilder()
+                .addPath(new BezierLine(
+                        new Pose(92.000, 16.000),
+                        new Pose(135.000, 30.000)
+                ))
+                .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(270))
+                .addPath(new BezierLine(
+                        new Pose(135.000, 30.000),
+                        new Pose(135.000, 10.000)
+                ))
+                .setLinearHeadingInterpolation(Math.toRadians(270), Math.toRadians(270))
+                .build();
+
+        line8 = follower.pathBuilder()
                 .addPath(new BezierLine(
                         new Pose(135.000, 10.000),
                         new Pose(125.000, 18.000)
@@ -192,39 +223,7 @@ public class RedSideAutoFar12 extends OpMode {
                 ))
                 .setLinearHeadingInterpolation(Math.toRadians(270), Math.toRadians(30.0))
                 .build();
-        line7 = follower
-                .pathBuilder()
-                .addPath(
-                        new BezierLine(new Pose(92.000, 16.000), new Pose(95.000, 56.000))
-                )
-                .setLinearHeadingInterpolation(Math.toRadians(30), Math.toRadians(0))
-                .addPath(
-                        new BezierLine(new Pose(95.000, 56.000), new Pose(134.000, 56.000))
-                )
-                .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(0))
 
-                .build();
-
-        line8 = follower
-                .pathBuilder()
-                .addPath(
-                        new BezierLine(new Pose(134.000, 56.000), new Pose(124.000, 56.000))
-                )
-                .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(0))
-                .addPath(
-                        new BezierLine(new Pose(124.000, 56.000), new Pose(130.000, 56.000))
-                )
-                .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(0))
-                .addPath(
-                        new BezierLine(new Pose(124.000, 56.000), new Pose(130.000, 56.000))
-                )
-                .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(0))
-                .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(0))
-                .addPath(
-                        new BezierLine(new Pose(130.000, 56.000), new Pose(92.000, 16.000))
-                )
-                .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(30))
-                .build();
         line100 = follower.pathBuilder()
                 .addPath(new BezierLine(
                         new Pose(92.000, 16.000),
@@ -422,7 +421,7 @@ public class RedSideAutoFar12 extends OpMode {
         pathState = newState;
         pathTimer.resetTimer();
 
-        if (pathState != 1 && pathState != 5 && pathState != 9) {
+        if (pathState != 1 && pathState != 5 && pathState != 9 && pathState != 12) {
             state = RunState.IDLE;
             plannedShotsThisRun = 0;
             beamCountAtRunStart = (outtakeBeamBreak != null) ? outtakeBeamBreak.getBallCount() : 0;
@@ -522,10 +521,10 @@ public class RedSideAutoFar12 extends OpMode {
             case 9:
                 if (!follower.isBusy()) {
                    outtake();
-                   if (shooter.isAtTargetThreshold()) {
-                            BeginShotSequenceIfIdle();
-                            runStateMachine(shooter, kickers);
-                        }
+                    if (shooter.getShooterVelocity() > 2000) {
+                        BeginShotSequenceIfIdle();
+                        runStateMachine(shooter, kickers);
+                    }
 
                    if (beamRunComplete() || state == RunState.DONE) {
                        //stopIntake();
@@ -549,7 +548,7 @@ public class RedSideAutoFar12 extends OpMode {
                     follower.setMaxPower(1);
                     follower.followPath(line8);
 
-                    setPathState(12);
+                    //setPathState(12);
                 }
                 break;
             case 12:
