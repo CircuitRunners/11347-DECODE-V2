@@ -1,6 +1,7 @@
 package org.firstinspires.ftc.teamcode.auto.OpenCVPipelines;
 
 import org.opencv.core.*;
+import org.opencv.imgproc.CLAHE;
 import org.opencv.imgproc.Imgproc;
 import org.openftc.easyopencv.OpenCvPipeline;
 
@@ -41,6 +42,7 @@ public class PurpleGreenBlobPipeline extends OpenCvPipeline {
 
     private final Mat unionMask = new Mat();
     private final Mat kernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(5, 5));
+    private final CLAHE clahe = Imgproc.createCLAHE(2.0, new Size(8, 8));
 
     @Override
     public Mat processFrame(Mat input) {
@@ -49,7 +51,17 @@ public class PurpleGreenBlobPipeline extends OpenCvPipeline {
         Imgproc.cvtColor(input, rgb, Imgproc.COLOR_RGBA2RGB);
         Imgproc.cvtColor(rgb, hsv, Imgproc.COLOR_RGB2HSV);
 
-        // Masks
+        // CLAHE on V channel (HSV -> split -> enhance V -> merge)
+        List<Mat> channels = new ArrayList<>(3);
+        Core.split(hsv, channels);
+
+        clahe.apply(channels.get(2), channels.get(2));  // V channel
+
+        Core.merge(channels, hsv);
+
+        for (Mat m : channels) m.release();
+
+        // Masks (ONLY ONCE)
         Core.inRange(hsv, GREEN_LO, GREEN_HI, greenMask);
         Core.inRange(hsv, PURPLE_LO, PURPLE_HI, purpleMask1);
 
@@ -111,7 +123,6 @@ public class PurpleGreenBlobPipeline extends OpenCvPipeline {
             cxNorm = (cx - W / 2.0) / (W / 2.0);
             cyNorm = (cy / (double) H);
 
-            // Debug draw
             Imgproc.rectangle(input, bestRect, new Scalar(0, 255, 0), 2);
             Imgproc.circle(input, new Point(cx, cy), 4, new Scalar(255, 0, 0), -1);
         } else {

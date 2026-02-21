@@ -15,10 +15,10 @@ public class BlobPipelineDebugOpMode extends OpMode {
 
     // Which webcam config name to use
     public static String WEBCAM_NAME_RED  = "RedWebcam"; // set to your C920 config name
-    public static String WEBCAM_NAME_BLUE = "BlueWebcom"; // set to your C270 config name
+    public static String WEBCAM_NAME_BLUE = "BlueWebcam"; // set to your C270 config name
 
     // Classification tuning
-    public static double CENTER_DEADBAND = 0.15;  // cxNorm in [-0.15..+0.15] => CENTER
+    public static double CENTER_DEADBAND = 0.25;  // cxNorm in [-0.15..+0.15] => CENTER
     public static double RED_TARGET_CX01 = 0.85;  // for red, you want blob to the RIGHT side
     public static double BLUE_TARGET_CX01 = 0.50; // for blue, you want blob centered
     public static double TARGET_TOL_CX01 = 0.06;  // alignment tolerance in [0..1] units
