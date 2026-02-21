@@ -3,7 +3,6 @@ package org.firstinspires.ftc.teamcode.auto.AutoPaths;
 import com.acmerobotics.dashboard.config.Config;
 import com.bylazar.configurables.annotations.Configurable;
 import com.pedropathing.follower.Follower;
-import com.pedropathing.geometry.BezierCurve;
 import com.pedropathing.geometry.BezierLine;
 import com.pedropathing.geometry.Pose;
 import com.pedropathing.paths.PathChain;
@@ -13,47 +12,46 @@ import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
-import org.firstinspires.ftc.robotcore.external.hardware.camera.WebcamName;
+import org.firstinspires.ftc.teamcode.support.BeamBreakHelper;
+
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.Pose2D;
-import org.firstinspires.ftc.teamcode.auto.OpenCVPipelines.PurpleGreenBlobPipeline;
 import org.firstinspires.ftc.teamcode.commands.ShotOrderPlanner;
 import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
-import org.firstinspires.ftc.teamcode.subsystems.drive.MecanumDrivebase;
 import org.firstinspires.ftc.teamcode.subsystems.intake.IntakeSubsystem;
+import org.firstinspires.ftc.teamcode.subsystems.shooter.HoodSubsystem;
 import org.firstinspires.ftc.teamcode.subsystems.shooter.ServoTurretTracker;
 import org.firstinspires.ftc.teamcode.subsystems.shooter.StaticShooter;
 import org.firstinspires.ftc.teamcode.subsystems.transfer.ColourZoneDetection;
 import org.firstinspires.ftc.teamcode.subsystems.transfer.Kickers;
 import org.firstinspires.ftc.teamcode.support.AlliancePresets;
-import org.firstinspires.ftc.teamcode.support.BeamBreakHelper;
-import org.openftc.easyopencv.OpenCvCamera;
-import org.openftc.easyopencv.OpenCvCameraFactory;
-import org.openftc.easyopencv.OpenCvCameraRotation;
 
 import java.util.Collections;
 import java.util.List;
 
 @Config
 @Configurable
-@Autonomous(name = "Blob Chase Red Far", group = "Red Autos", preselectTeleOp = "MainTeleOpRED")
-public class BlobDetectionRedFar extends OpMode {
+@Autonomous(name = "Blue Side Auto Far 9", group = "Blue Autos", preselectTeleOp = "MainTeleOp")
+public class BlueSideAutoFar9 extends OpMode {
 
     // ===================== GOAL / AUTO AIM =====================
-    public static Pose TURRET_TARGET_POSE = new Pose(140, 136);
+    // Mirrored in X about field midline (x' = 144 - x)
+    public static Pose TURRET_TARGET_POSE = new Pose(0, 140);   // ( -4,136 ) using your mirror rule
     public static double TURRET_TRIM_DEG = 0.0;
 
     // ===================== AUTO-SORT / INDEXING =====================
     public static ShotOrderPlanner.Cipher CIPHER = ShotOrderPlanner.Cipher.PPG;
     public static boolean FORCE_SHOOT_ALL_ZONES = true;
-
     private ColourZoneDetection.Snapshot initSnap = null;
     private static double INIT_SNAPSHOT_HZ = 20.0;
     private final ElapsedTime initSnapTimer = new ElapsedTime();
+    private final ElapsedTime czdStableTimer = new ElapsedTime();
+    private static double CZD_STABLE_TIME_S = 0.25;
+    private ColourZoneDetection.Snapshot lastStableSnap = null;
 
     // Shooter ready gate
-    public static double SHOOTER_READY_TOL_RPM = 100.0;
+    public static double SHOOTER_READY_TOL_RPM = 200.0;
     public static double SHOOTER_READY_TIMEOUT_S = 0.8;
 
     // Kicker timings
@@ -61,24 +59,30 @@ public class BlobDetectionRedFar extends OpMode {
     public static double RESET_DOWN_TIME_S = 0.12;
     public static double BETWEEN_SHOTS_PAUSE_S = 0.15;
 
+    private int cypherId = -1;
     private BeamBreakHelper outtakeBeamBreak;
     private Thread outtakeThread;
 
+    // Ball counting for each shooting window
     private int beamCountAtRunStart = 0;
     private int plannedShotsThisRun = 0;
 
-    // ===================== SHOOTER RPM =====================
-    public static double RPM_MAX = 4000.0;
-    private double shooterCmdRpm = 0.0;
+    // ===================== AUTO RPM CONTROL =====================
+    public static double RPM_D0_IN = 24,  RPM_P0 = 3000;
+    public static double RPM_D1_IN = 48,  RPM_P1 = 3200;
+    public static double RPM_D2_IN = 72,  RPM_P2 = 3400;
+    public static double RPM_D3_IN = 96,  RPM_P3 = 3600;
+    public static double RPM_D4_IN = 120, RPM_P4 = 3800;
+
+    public static double RPM_MIN = 0.0;
+    public static double RPM_MAX = 3900.0; //TODO: reset to 3800
 
     // ===================== HARDWARE =====================
     private StaticShooter shooter;
     private Kickers kickers;
     private IntakeSubsystem intake;
+    private HoodSubsystem outtake;
     private ServoTurretTracker turret;
-
-    // Manual motor drive (for blob chase)
-    private MecanumDrivebase drive;
 
     // ===================== SOFTWARE =====================
     private ShotOrderPlanner planner;
@@ -94,113 +98,103 @@ public class BlobDetectionRedFar extends OpMode {
     private ColourZoneDetection.Snapshot snap = null;
     private int stepIdx = 0;
 
+    // The actual commanded RPM (used for readiness gating)
+    private double shooterCmdRpm = 0.0;
+
     // ===================== PATH FOLLOWING =====================
     private Follower follower;
     private Timer pathTimer;
     private int pathState = 0;
 
-    private final Pose startPose = new Pose(104.0, 8.2, Math.toRadians(0));
-    private PathChain line1, line2, line3, line4, line5, line6;
+    // Blue start pose per your instruction
+    private final Pose startPose = new Pose(40.0, 8.2, Math.toRadians(0));
 
-    // ===================== BLOB CHASE =====================
-    private OpenCvCamera blobCam;
-    private PurpleGreenBlobPipeline blobPipeline;
+    private PathChain line1, line2, line3, line4, line5, line6, line100;
 
-    public static String BLOB_WEBCAM_NAME = "RedWebcam";
-    public static double BLOB_CENTER_DEADBAND = 0.12;
-    public static double BLOB_K_TURN = 0.25;
-    public static double BLOB_MAX_TURN = 0.20;
-    public static double BLOB_FWD_BASE = 0.10;
-    public static double BLOB_FWD_CENTERED = 0.14;
-    public static double BLOB_MAX_FWD = -0.18;
-    public static double BLOB_SCAN_TURN = 0.10;
-    public static double BLOB_SCAN_FWD = 0.05;
+    // ===================== BUILD PATHS (MIRRORED X, HEADINGS KEPT SAME) =====================
+    // Mirror rule you’ve been using elsewhere: x' = 144 - x
+    private static double mx(double x) { return 144.0 - x; }
 
-    // NEW: treat "fills camera" as "close enough"
-    // If your pipeline's "area" is contour area in pixels, then compare against frame area.
-    // Start with 0.35-0.55 and tune.
-    public static double BLOB_CLOSE_AREA_FRAC = 0.45;
-
-    public static int BALL_LIMIT = 3;
-    public static double X_LIMIT = 130.0;
-
-    public static double BLOB_TURN_SIGN = 1.0;
-
-    // ===================== BUILD PATHS =====================
     private void buildPaths() {
         line1 = follower.pathBuilder()
-                .addPath(new BezierCurve(
-                        new Pose(104.000, 8.200),
-                        new Pose(109.000, 20.000),
-                        new Pose(119.000, 13.500)
+                .addPath(new BezierLine(
+                        new Pose(startPose.getX(), startPose.getY()),
+                        new Pose(mx(100.000), 35.000)
                 ))
                 .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(0.0))
                 .build();
 
         line2 = follower.pathBuilder()
                 .addPath(new BezierLine(
-                        new Pose(119.000, 13.500),
-                        new Pose(134.000, 13.500)
+                        new Pose(mx(100.000), 35.000),
+                        new Pose(mx(137.000), 35.000)
                 ))
                 .setLinearHeadingInterpolation(Math.toRadians(0.0), Math.toRadians(0.0))
                 .build();
 
         line3 = follower.pathBuilder()
                 .addPath(new BezierLine(
-                        new Pose(134.000, 14.000),
-                        new Pose(119.000, 9.000)
+                        new Pose(mx(137.000), 35.000),
+                        new Pose(startPose.getX(), startPose.getY())
                 ))
                 .setLinearHeadingInterpolation(Math.toRadians(0.0), Math.toRadians(0.0))
                 .build();
 
         line4 = follower.pathBuilder()
                 .addPath(new BezierLine(
-                        new Pose(119.000, 9.000),
-                        new Pose(135.000, 9.000)
+                        new Pose(startPose.getX(), startPose.getY()),
+                        new Pose(mx(137.000), 35.000)
                 ))
-                .setTangentHeadingInterpolation()
+                .setLinearHeadingInterpolation(Math.toRadians(0.0), Math.toRadians(270.0))
                 .build();
 
         line5 = follower.pathBuilder()
-                .addPath(new BezierCurve(
-                        new Pose(135.000, 9.000),
-                        new Pose(124.000, 30.000),
-                        new Pose(104.000, 8.200)
+                .addPath(new BezierLine(
+                        new Pose(mx(136.000), 8.000),
+                        new Pose(mx(124.000), 30.000)
                 ))
-                .setLinearHeadingInterpolation(Math.toRadians(0.0), Math.toRadians(0))
+                .setLinearHeadingInterpolation(Math.toRadians(270.0), Math.toRadians(270.0))
                 .build();
 
         line6 = follower.pathBuilder()
                 .addPath(new BezierLine(
-                        new Pose(104.000, 8.200),
-                        new Pose(109.000, 15.000)
+                        new Pose(mx(136.000), 8.000),
+                        new Pose(startPose.getX(), startPose.getY())
                 ))
-                .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(0.0))
+                .setLinearHeadingInterpolation(Math.toRadians(270.0), Math.toRadians(0.0))
+                .build();
+
+        line100 = follower.pathBuilder()
+                .addPath(new BezierLine(
+                        new Pose(startPose.getX(), startPose.getY()),
+                        new Pose(mx(109.000), 15.000)
+                ))
+                .setLinearHeadingInterpolation(Math.toRadians(0.0), Math.toRadians(0.0))
                 .build();
     }
 
     @Override
     public void init() {
-        for (LynxModule hub : hardwareMap.getAll(LynxModule.class)) {
+        List<LynxModule> allHubs = hardwareMap.getAll(LynxModule.class);
+        for (LynxModule hub : allHubs) {
             hub.setBulkCachingMode(LynxModule.BulkCachingMode.MANUAL);
         }
 
-        AlliancePresets.setAllianceShooterTag(AlliancePresets.Alliance.RED.getTagId());
-
-        follower = Constants.createFollower(hardwareMap);
-        follower.setStartingPose(startPose);
-
-        // Manual drive for blob chase
-        drive = new MecanumDrivebase(hardwareMap, true, true, follower);
+        AlliancePresets.setAllianceShooterTag(AlliancePresets.Alliance.BLUE.getTagId());
 
         shooter = new StaticShooter(hardwareMap, telemetry);
         shooter.setTargetRPM(0);
 
         intake = new IntakeSubsystem(hardwareMap, telemetry);
 
+        outtake = new HoodSubsystem(hardwareMap);
+        outtake.setAutomatic(true);
         outtakeBeamBreak = new BeamBreakHelper(hardwareMap, "outtakeBeamBreak", 0);
 
         kickers = new Kickers(hardwareMap);
+
+        follower = Constants.createFollower(hardwareMap);
+        follower.setStartingPose(startPose);
 
         czd = new ColourZoneDetection(hardwareMap,
                 "z1CSa", "z2CSa", "z3CSa",
@@ -214,38 +208,15 @@ public class BlobDetectionRedFar extends OpMode {
         kickers.resetZoneTwo();
         kickers.resetZoneThree();
 
-        // ===== Start blob webcam + pipeline =====
-        blobPipeline = new PurpleGreenBlobPipeline();
-
-        int camMonitorViewId = hardwareMap.appContext.getResources()
-                .getIdentifier("cameraMonitorViewId", "id", hardwareMap.appContext.getPackageName());
-
-        blobCam = OpenCvCameraFactory.getInstance().createWebcam(
-                hardwareMap.get(WebcamName.class, BLOB_WEBCAM_NAME),
-                camMonitorViewId
-        );
-        blobCam.setPipeline(blobPipeline);
-
-        blobCam.openCameraDeviceAsync(new OpenCvCamera.AsyncCameraOpenListener() {
-            @Override
-            public void onOpened() {
-                blobCam.startStreaming(640, 480, OpenCvCameraRotation.SIDEWAYS_LEFT);
-            }
-
-            @Override
-            public void onError(int errorCode) {
-                telemetry.addData("BlobCam error", errorCode);
-            }
-        });
-
         follower.update();
-        buildPaths();
 
+        buildPaths();
         pathTimer = new Timer();
         pathTimer.resetTimer();
         setPathState(0);
 
         telemetry.addData("Status", "Initialized");
+        telemetry.addData("Auto:", "Blue Side Auto Far 9");
         telemetry.update();
     }
 
@@ -256,10 +227,8 @@ public class BlobDetectionRedFar extends OpMode {
             initSnap = czd.getStableSnapshot();
         }
 
-        if (initSnapTimer.seconds() < (1.0 / INIT_SNAPSHOT_HZ)) return;
-        initSnapTimer.reset();
-
         telemetry.addLine("=== INIT PREVIEW ===");
+        telemetry.addData("Cypher Tag", cypherId);
         telemetry.addData("Cipher", CIPHER);
 
         telemetry.addLine("=== ZONE COLORS (Stable Snapshot) ===");
@@ -271,9 +240,6 @@ public class BlobDetectionRedFar extends OpMode {
             telemetry.addData("Z2", "RAW:%s has=%s", initSnap.z2.color, initSnap.z2.hasBall);
             telemetry.addData("Z3", "RAW:%s has=%s", initSnap.z3.color, initSnap.z3.hasBall);
         }
-
-        telemetry.addData("BlobTarget", blobPipeline != null && blobPipeline.hasTarget);
-        if (blobPipeline != null) telemetry.addData("Blob cxNorm", "%.2f", blobPipeline.cxNorm);
 
         telemetry.update();
     }
@@ -294,6 +260,14 @@ public class BlobDetectionRedFar extends OpMode {
 
         pathTimer.resetTimer();
         setPathState(0);
+
+        int id = AlliancePresets.getCurrentCypher();
+        if (id == 21) CIPHER = ShotOrderPlanner.Cipher.GPP;
+        else if (id == 22) CIPHER = ShotOrderPlanner.Cipher.PGP;
+        else if (id == 23) CIPHER = ShotOrderPlanner.Cipher.PPG;
+
+        telemetry.addData("LOCKED CIPHER", CIPHER);
+        telemetry.update();
     }
 
     @Override
@@ -301,11 +275,11 @@ public class BlobDetectionRedFar extends OpMode {
         for (LynxModule hub : hardwareMap.getAll(LynxModule.class)) {
             hub.clearBulkCache();
         }
-
         follower.update();
         czd.update();
+        shooter.periodic();
+        outtake.update();
 
-        // ===================== AUTO AIM / SHOOTER RPM =====================
         Pose robotPose = follower.getPose();
         double robotX = robotPose.getX();
         double robotY = robotPose.getY();
@@ -320,36 +294,33 @@ public class BlobDetectionRedFar extends OpMode {
         turret.setEnabled(true);
         turret.update(turretPose);
 
-        shooterCmdRpm = RPM_MAX;
-        shooter.setTargetRPM(shooterCmdRpm);
-        shooter.periodic();
+        outtake.updateAutoHoodFromField(robotX, robotY, goalX, goalY);
 
-        // Freeze follower while shooting (manual drive will be forced 0 in those states anyway)
         boolean shootingActive = (state != RunState.IDLE && state != RunState.DONE && state != RunState.ABORTED);
         if (shootingActive) follower.pausePathFollowing();
         else follower.resumePathFollowing();
 
         autonomousPathUpdate();
 
+        telemetry.addLine("---- BLUE Side Auto Far 9 ----");
+        telemetry.addData("Follower busy?", follower.isBusy());
         telemetry.addData("Path State", pathState);
         telemetry.addData("Shot State", state);
-        telemetry.addData("Pose", "x=%.2f y=%.2f h=%.1f", robotX, robotY, Math.toDegrees(robotHeadingRad));
-        telemetry.addData("Balls(in zones)", ballsInRobotEstimate());
-        telemetry.addData("BlobTarget", blobPipeline != null && blobPipeline.hasTarget);
-        if (blobPipeline != null) telemetry.addData("cxNorm", "%.2f", blobPipeline.cxNorm);
+        telemetry.addData("Shooter RPM (meas)", shooter.getShooterVelocity());
+        telemetry.addData("Shooter RPM (cmd)", shooterCmdRpm);
+        telemetry.addData("Pose", "x=%.2f y=%.2f h=%.1f",
+                robotX, robotY, Math.toDegrees(robotHeadingRad));
+        telemetry.addData("Beam total", outtakeBeamBreak != null ? outtakeBeamBreak.getBallCount() : -1);
+        telemetry.addData("Beam run shots", ballsShotThisRun());
+        telemetry.addData("Planned shots", plannedShotsThisRun);
         telemetry.update();
     }
 
     @Override
     public void stop() {
-        try {
-            if (blobCam != null) blobCam.stopStreaming();
-        } catch (Exception ignored) {}
-
-        drive.drive(0, 0, 0);
-        follower.breakFollowing();
         shooter.eStop();
-        stopIntake();
+        follower.breakFollowing();
+        if (outtakeThread != null) outtakeThread.interrupt();
     }
 
     private void setPathState(int newState) {
@@ -363,12 +334,12 @@ public class BlobDetectionRedFar extends OpMode {
         }
     }
 
-    // ===================== MAIN AUTO LOGIC =====================
     private void autonomousPathUpdate() {
         switch (pathState) {
             case 0:
                 if (!follower.isBusy()) {
                     follower.setMaxPower(1);
+                    shooter.setTargetRPM(RPM_MAX);
                     setPathState(1);
                 }
                 break;
@@ -378,109 +349,40 @@ public class BlobDetectionRedFar extends OpMode {
                     BeginShotSequenceIfIdle();
                     runStateMachine(shooter, kickers);
                 }
-
                 if (beamRunComplete() || state == RunState.DONE || pathTimer.getElapsedTimeSeconds() > 6.0) {
                     setPathState(2);
                 }
                 break;
 
             case 2:
-                // Run your normal move, then switch into blob chase (manual motor control)
                 if (!follower.isBusy()) {
                     intake();
-                    follower.setMaxPower(0.5);
                     follower.followPath(line1);
                     setPathState(3);
                 }
                 break;
 
             case 3:
-                // Enter blob chase mode when line1 completes
                 if (!follower.isBusy()) {
-                    follower.pausePathFollowing();
-                    drive.drive(0, 0, 0);
-                    setPathState(20);
+                    follower.followPath(line2);
+                    setPathState(4);
                 }
                 break;
 
-            case 20: {
-                Pose p = follower.getPose();
-                double x = p.getX();
-
-                int balls = ballsInRobotEstimate();
-                boolean stopBecauseFull = balls >= BALL_LIMIT;
-                boolean stopBecauseX = x >= X_LIMIT;
-
-                // DEBUG: show why it stops
-                telemetry.addData("CHASE x", "%.1f", x);
-                telemetry.addData("CHASE balls", balls);
-                telemetry.addData("stopFull", stopBecauseFull);
-                telemetry.addData("stopX", stopBecauseX);
-
-                if (stopBecauseFull || stopBecauseX) {
-                    stopIntake();
-                    drive.drive(0, 0, 0);
-
-                    follower.resumePathFollowing();
-                    follower.setMaxPower(0.6);
-                    follower.followPath(line5);
+            case 4:
+                if (!follower.isBusy()) {
+                    follower.followPath(line3);
                     setPathState(7);
-                    break;
                 }
-
-                intake();
-
-                if (blobPipeline == null || !blobPipeline.hasTarget) {
-                    // robot-centric scan
-                    drive.drive(BLOB_SCAN_FWD, 0.0, BLOB_SCAN_TURN);
-                    break;
-                }
-
-                final double frameArea = 640.0 * 480.0;
-                final double areaFrac = (blobPipeline.area <= 0.0) ? 0.0 : (blobPipeline.area / frameArea);
-                final boolean closeEnough = areaFrac >= BLOB_CLOSE_AREA_FRAC;
-
-                telemetry.addData("hasTarget", true);
-                telemetry.addData("areaFrac", "%.2f", areaFrac);
-
-                if (closeEnough) {
-                    // straight robot-centric forward
-                    double forward = clamp(BLOB_FWD_CENTERED, BLOB_MAX_FWD, 0.0);
-                    drive.drive(forward, 0.0, 0.0);
-                    telemetry.addData("Blob mode", "CLOSE -> straight");
-                    break;
-                }
-
-                double cx = blobPipeline.cxNorm; // [-1..1]
-                boolean centered = Math.abs(cx) <= BLOB_CENTER_DEADBAND;
-
-                double turn = BLOB_TURN_SIGN * (BLOB_K_TURN * cx);
-                turn = clamp(turn, -BLOB_MAX_TURN, BLOB_MAX_TURN);
-
-                double forward = centered ? BLOB_FWD_CENTERED : BLOB_FWD_BASE;
-                forward = clamp(forward, 0.0, BLOB_MAX_FWD);
-
-                forward *= (1.0 - clamp(Math.abs(turn) / BLOB_MAX_TURN, 0.0, 1.0) * 0.6);
-
-                // robot-centric chase
-                drive.drive(forward, 0.0, turn);
-
-                telemetry.addData("cxNorm", "%.2f", cx);
-                telemetry.addData("cmdFwd", "%.2f", forward);
-                telemetry.addData("cmdTurn", "%.2f", turn);
                 break;
-            }
 
             case 7:
-                // stop manual drive so follower can take over
-                drive.drive(0, 0, 0);
-
                 if (!follower.isBusy()) {
+                    stopIntake();
                     if (shooter.isAtTargetThreshold()) {
                         BeginShotSequenceIfIdle();
                         runStateMachine(shooter, kickers);
                     }
-
                     if (beamRunComplete() || state == RunState.DONE || pathTimer.getElapsedTimeSeconds() > 6.0) {
                         setPathState(8);
                     }
@@ -489,12 +391,48 @@ public class BlobDetectionRedFar extends OpMode {
 
             case 8:
                 if (!follower.isBusy()) {
-                    follower.followPath(line6);
+                    intake();
+                    follower.followPath(line4);
                     setPathState(9);
                 }
                 break;
 
             case 9:
+                if (!follower.isBusy()) {
+                    intake();
+                    follower.followPath(line5);
+                    setPathState(10);
+                }
+                break;
+
+            case 10:
+                if (!follower.isBusy()) {
+                    follower.followPath(line6);
+                    setPathState(11);
+                }
+                break;
+
+            case 11:
+                if (!follower.isBusy()) {
+                    stopIntake();
+                    if (shooter.isAtTargetThreshold()) {
+                        BeginShotSequenceIfIdle();
+                        runStateMachine(shooter, kickers);
+                    }
+                    if (beamRunComplete() || state == RunState.DONE || pathTimer.getElapsedTimeSeconds() > 6.0) {
+                        setPathState(99);
+                    }
+                }
+                break;
+
+            case 99:
+                if (!follower.isBusy()) {
+                    follower.followPath(line100);
+                    setPathState(100);
+                }
+                break;
+
+            case 100:
                 if (!follower.isBusy()) {
                     AlliancePresets.setCurrentPose2D(new Pose2D(
                             DistanceUnit.INCH,
@@ -507,12 +445,7 @@ public class BlobDetectionRedFar extends OpMode {
                     RPM_MAX = 0;
                     shooter.eStop();
                     follower.breakFollowing();
-                    stopIntake();
-                    drive.drive(0, 0, 0);
                 }
-                break;
-
-            default:
                 break;
         }
     }
@@ -618,10 +551,6 @@ public class BlobDetectionRedFar extends OpMode {
         }
     }
 
-    private static double clamp(double v, double lo, double hi) {
-        return Math.max(lo, Math.min(hi, v));
-    }
-
     private int ballsShotThisRun() {
         if (outtakeBeamBreak == null) return 0;
         return outtakeBeamBreak.getBallCount() - beamCountAtRunStart;
@@ -631,22 +560,12 @@ public class BlobDetectionRedFar extends OpMode {
         return plannedShotsThisRun > 0 && ballsShotThisRun() >= plannedShotsThisRun;
     }
 
+    // BLUE DIFFERENCE: intakeChub instead of intakeEhub
     private void intake() {
-        intake.intakeEhub(1);
+        intake.intakeChub(1);
     }
 
     private void stopIntake() {
         intake.stop();
-    }
-
-    private int ballsInRobotEstimate() {
-        ColourZoneDetection.Snapshot s = czd.getRawSnapshot();
-        if (s == null) return 0;
-
-        int count = 0;
-        if (s.z1.hasBall) count++;
-        if (s.z2.hasBall) count++;
-        if (s.z3.hasBall) count++;
-        return count;
     }
 }
