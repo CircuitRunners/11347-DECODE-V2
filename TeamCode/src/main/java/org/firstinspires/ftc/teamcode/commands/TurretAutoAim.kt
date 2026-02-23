@@ -48,7 +48,7 @@ class TurretAutoAim(
             if (isRed) {
                 gx -= 2
             } else {
-                gx += 4
+                gx -= 2
             }
         }
 

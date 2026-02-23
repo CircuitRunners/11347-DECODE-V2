@@ -32,11 +32,11 @@ import java.util.List;
 
 @Config
 @Configurable
-@Autonomous(name = "Red Side Auto Far 12", group = "Red Autos", preselectTeleOp = "MainTeleOp")
+@Autonomous(name = "Red Side Auto Far 12", group = "Red Autos", preselectTeleOp = "MainTeleOpRED")
 public class RedSideAutoFar12 extends OpMode {
 
     // ===================== GOAL / AUTO AIM =====================
-    public static Pose TURRET_TARGET_POSE = new Pose(138, 136);   // field inches
+    public static Pose TURRET_TARGET_POSE = new Pose(136, 136);   // field inches
     public static double TURRET_TRIM_DEG = 0.0;                   // optional trim
 
     // ===================== AUTO-SORT / INDEXING =====================
@@ -107,14 +107,14 @@ public class RedSideAutoFar12 extends OpMode {
     private Timer pathTimer;
     private int pathState = 0;
 
-    private final Pose startPose = new Pose(81.5, 9.3, Math.toRadians(0));
+    private final Pose startPose = new Pose(81.5, 8.2, Math.toRadians(0));
     private PathChain line1, line2, line3, line4, line5, line6, line7,line8, line100;
 
     // ===================== BUILD PATHS =====================
     private void buildPaths() {
         line1 = follower.pathBuilder().addPath(
                         new BezierCurve(
-                                new Pose(81.500, 9.300),
+                                new Pose(81.500, 8.200),
                                 new Pose(80.000, 34.000),
                                 new Pose(95.000, 34.000)
                         )

@@ -32,10 +32,10 @@ import java.util.List;
 
 @Config
 @Configurable
-@Autonomous(name = "Red Side Auto Close 9", group = "Red Autos", preselectTeleOp = "MainTeleOp")
+@Autonomous(name = "Red Side Auto Close 9", group = "Red Autos", preselectTeleOp = "MainTeleOpRED")
 public class RedSideAutoClose9 extends OpMode {
     // ===================== GOAL / AUTO AIM =====================
-    public static Pose TURRET_TARGET_POSE = new Pose(138, 136);   // field inches
+    public static Pose TURRET_TARGET_POSE = new Pose(136, 136);   // field inches
     public static double TURRET_TRIM_DEG = 0.0;                   // optional trim
 
     // ===================== AUTO-SORT / INDEXING =====================
@@ -191,7 +191,6 @@ public class RedSideAutoClose9 extends OpMode {
                 )
                 .setLinearHeadingInterpolation(Math.toRadians(-30), Math.toRadians(0))
                 .build();
-
     }
 
     @Override

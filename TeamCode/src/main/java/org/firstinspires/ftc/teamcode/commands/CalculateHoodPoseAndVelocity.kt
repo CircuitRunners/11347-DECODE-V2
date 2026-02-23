@@ -33,7 +33,7 @@ class CalculateHoodPoseAndVelocity(
     private val updatePeriodSec = 1.0
     var flywheelSpeed = 0.0
     var hoodAngle = 0.0
-    var maxHoodTicks = 0.9
+    var maxHoodTicks = 0.96 //0.9
 
     init {
         addRequirements( shooter, hood)

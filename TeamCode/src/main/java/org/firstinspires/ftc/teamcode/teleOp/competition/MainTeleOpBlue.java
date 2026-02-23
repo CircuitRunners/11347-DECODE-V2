@@ -59,8 +59,8 @@ public class MainTeleOpBlue extends CommandOpMode {
     private int loopCount = 0;
 
     // ============ Physics ============ 
-    private final Pose GOAL_POS_RED = new Pose(138, 138); //138, 138
-    private final Pose GOAL_POS_BLUE = new Pose(-4, 136);
+    private final Pose GOAL_POS_RED = new Pose(136, 138); //138, 138
+    private final Pose GOAL_POS_BLUE = new Pose(0, 136);
     private final double SCORE_ANGLE = Math.toRadians(-30);
     public static double HOOD_MAX_ANGLE = Math.toRadians(67);
     public static double HOOD_MIN_ANGLE = Math.toRadians(0);
@@ -68,7 +68,7 @@ public class MainTeleOpBlue extends CommandOpMode {
     @Override
     public void initialize() {
         // ============ Hardware ============
-        drive = new MecanumDrivebase(hardwareMap, true, false);
+        drive = new MecanumDrivebase(hardwareMap, false, false);
 
         shooter = new StaticShooter(hardwareMap, telemetry);
         shooter.setTargetRPM(0);
@@ -102,38 +102,43 @@ public class MainTeleOpBlue extends CommandOpMode {
         intake.setDefaultCommand(new IntakeCommand(intake, driver, czd, rgb));
 
         reseter.getGamepadButton(GamepadKeys.Button.DPAD_LEFT)
-                .whenPressed(new InstantCommand(()->
-                        drive.setPose(new Pose(72,72, drive.getPose().getHeading()))
-                ));
+                        .whenPressed(new InstantCommand(()->
+                                drive.setPose(new Pose(72,72, drive.getPose().getHeading()))
+                        ));
 
         reseter.getGamepadButton(GamepadKeys.Button.DPAD_DOWN)
-                .whenPressed(new InstantCommand(()->
-                        drive.setPose(new Pose(72, 16, drive.getPose().getHeading()))
-                ));
+                        .whenPressed(new InstantCommand(()->
+                                drive.setPose(new Pose(72, 16, drive.getPose().getHeading()))
+                        ));
 
         reseter.getGamepadButton(GamepadKeys.Button.DPAD_RIGHT)
-                .whenPressed(new InstantCommand(()->
-                        drive.setPose(new Pose(isRed ? 126 : 17, 69, drive.getPose().getHeading()))
-                ));
+                        .whenPressed(new InstantCommand(()->
+                                drive.setPose(new Pose(17, 69, drive.getPose().getHeading()))
+                        ));
+
+        reseter.getGamepadButton(GamepadKeys.Button.DPAD_UP)
+                        .whenPressed(new InstantCommand(()->
+                                drive.setPose(new Pose(33.5, 135, drive.getPose().getHeading()))
+                        ));
 
         reseter.getGamepadButton(GamepadKeys.Button.B)
-                .whenPressed(new InstantCommand(()-> {
-                    drive.setPose(new Pose(drive.getPose().getX(), drive.getPose().getY(), Math.toRadians(0.0)));
-                    odoHeading.reset(Math.toRadians(0.0));
-                }));
+                        .whenPressed(new InstantCommand(()-> {
+                            drive.setPose(new Pose(drive.getPose().getX(), drive.getPose().getY(), Math.toRadians(0.0)));
+                            odoHeading.reset(Math.toRadians(0.0));
+                        }));
 
         driver.getGamepadButton(GamepadKeys.Button.LEFT_BUMPER)
-                .whenPressed(new AutoSortAndExecute(
-                        czd,
-                        kicker,
-                        shotPlanner,
-                        () -> cipher,
-                        0.18,
-                        0.12,
-                        false,
-                        false,
-                        telemetry
-                ));
+                        .whenPressed(new AutoSortAndExecute(
+                                czd,
+                                kicker,
+                                shotPlanner,
+                                () -> cipher,
+                                0.18,
+                                0.12,
+                                false,
+                                true,
+                                telemetry
+                        ));
 
         // ============ Registered & Auto Updating Code ============
         register(shooter, kicker, hood);

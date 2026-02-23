@@ -32,25 +32,33 @@ import java.util.List;
 
 @Config
 @Configurable
-@Autonomous(name = "Blue Side Auto Close 6", group = "Blue Autos", preselectTeleOp = "MainTeleOp")
+@Autonomous(name = "Blue Side Auto Close 9 (Mirrored)", group = "Blue Autos", preselectTeleOp = "MainTeleOp")
 public class BlueSideAutoClose9 extends OpMode {
+
+    // ===== Mirror rule (matches your startPose: (125,120,36) -> (19,120,144)) =====
+    // Field is 144" wide in Pedro coords.
+    private static final double FIELD_W = 144.0;
+    private static double mx(double x) { return FIELD_W - x; }               // x' = 144 - x
+    private static double mhDeg(double deg) { return 180.0 - deg; }          // h' = 180 - h (mirror across Y axis)
+    private static double mhRad(double rad) { return Math.toRadians(mhDeg(Math.toDegrees(rad))); }
+
     // ===================== GOAL / AUTO AIM =====================
-    public static Pose TURRET_TARGET_POSE = new Pose(-8, 140);   // field inches
-    public static double TURRET_TRIM_DEG = 0.0;                   // optional trim
+    // Red was (136,136) -> Blue becomes (8,136)
+    public static Pose TURRET_TARGET_POSE = new Pose(-2, 136);
+    public static double TURRET_TRIM_DEG = 0.0;
 
     // ===================== AUTO-SORT / INDEXING =====================
     public static ShotOrderPlanner.Cipher CIPHER = ShotOrderPlanner.Cipher.PPG;
     public static boolean FORCE_SHOOT_ALL_ZONES = true;
-    private boolean cipherLocked = false;
     private ColourZoneDetection.Snapshot initSnap = null;
-    private static double INIT_SNAPSHOT_HZ = 20.0; // telemetry refresh rate cap
+    private static double INIT_SNAPSHOT_HZ = 20.0;
     private final ElapsedTime initSnapTimer = new ElapsedTime();
     private final ElapsedTime czdStableTimer = new ElapsedTime();
     private static double CZD_STABLE_TIME_S = 0.25;
     private ColourZoneDetection.Snapshot lastStableSnap = null;
 
     // Shooter ready gate
-    public static double SHOOTER_READY_TOL_RPM = 200.0;
+    public static double SHOOTER_READY_TOL_RPM = 100.0;
     public static double SHOOTER_READY_TIMEOUT_S = 0.8;
 
     // Kicker timings
@@ -62,11 +70,10 @@ public class BlueSideAutoClose9 extends OpMode {
     private BeamBreakHelper outtakeBeamBreak;
     private Thread outtakeThread;
 
-    // Ball counting for each shooting window
     private int beamCountAtRunStart = 0;
     private int plannedShotsThisRun = 0;
 
-    // ===================== AUTO RPM CONTROL (simple distance->rpm table) =====================
+    // ===================== AUTO RPM CONTROL =====================
     public static double RPM_D0_IN = 24,  RPM_P0 = 3000;
     public static double RPM_D1_IN = 48,  RPM_P1 = 3200;
     public static double RPM_D2_IN = 72,  RPM_P2 = 3400;
@@ -74,7 +81,7 @@ public class BlueSideAutoClose9 extends OpMode {
     public static double RPM_D4_IN = 120, RPM_P4 = 3800;
 
     public static double RPM_MIN = 0.0;
-    public static double RPM_MAX = 2850.0; //TODO: reset to 2900
+    public static double RPM_MAX = 3000.0;
 
     // ===================== HARDWARE =====================
     private StaticShooter shooter;
@@ -97,7 +104,6 @@ public class BlueSideAutoClose9 extends OpMode {
     private ColourZoneDetection.Snapshot snap = null;
     private int stepIdx = 0;
 
-    // The actual commanded RPM (used for readiness gating)
     private double shooterCmdRpm = 0.0;
 
     // ===================== PATH FOLLOWING =====================
@@ -105,40 +111,44 @@ public class BlueSideAutoClose9 extends OpMode {
     private Timer pathTimer;
     private int pathState = 0;
 
-    // Mirrored positions (x' = 144 - x), but KEEP headings like red (start heading = 0)
-    private final Pose startPose = new Pose(33.5, 135.500, Math.toRadians(0));
-    private PathChain line1, line2, line3, line4, line5, line6, line7, line8, line67;
+    private final Pose startPose = new Pose(19.0, 120.0, Math.toRadians(324));
+    private PathChain line1, line2, line3, line4, line5, line6, line8;
 
-    // ===================== BUILD PATHS (MANUALLY MIRRORED POSITIONS, ORIGINAL HEADINGS) =====================
+    // ===================== BUILD PATHS (MIRRORED) =====================
     private void buildPaths() {
         line1 = follower
                 .pathBuilder()
                 .addPath(
-                        new BezierLine(new Pose(33.500, 135.500), new Pose(62.000, 100.000))
+                        new BezierLine(new Pose(19.0, 120.00), new Pose(55, 90))
                 )
-                .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(30))
-                .build();
-
-        line67 = follower
-                .pathBuilder()
-                .addPath(
-                        new BezierLine(new Pose(62.00, 100.00), new Pose(44.000, 100.000))
-                )
-                .setLinearHeadingInterpolation(Math.toRadians(30), Math.toRadians(0))
+                .setLinearHeadingInterpolation(Math.toRadians(324), Math.toRadians(324))
                 .build();
 
         line2 = follower
                 .pathBuilder()
                 .addPath(
-                        new BezierLine(new Pose(44.000, 100.000), new Pose(47.000, 84.000))
+                        new BezierLine(new Pose(55, 90), new Pose(48, 84.000))
+                )
+                .setLinearHeadingInterpolation(Math.toRadians(324), Math.toRadians(0))
+                .addPath(
+                        new BezierLine(new Pose(48, 84.000), new Pose(17, 84.000))
                 )
                 .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(0))
+
                 .build();
 
         line3 = follower
                 .pathBuilder()
                 .addPath(
-                        new BezierLine(new Pose(47.000, 84.000), new Pose(17.000, 84.000))
+                        new BezierLine(new Pose(17, 84.000), new Pose(27, 84.000))
+                )
+                .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(0))
+                .addPath(
+                        new BezierLine(new Pose(27, 84.000), new Pose(21, 86.000))
+                )
+                .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(0))
+                .addPath(
+                        new BezierLine(new Pose(21, 86.000), new Pose(60, 84.000))
                 )
                 .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(0))
                 .build();
@@ -146,7 +156,7 @@ public class BlueSideAutoClose9 extends OpMode {
         line4 = follower
                 .pathBuilder()
                 .addPath(
-                        new BezierLine(new Pose(17.000, 84.000), new Pose(44.000, 100.000))
+                        new BezierLine(new Pose(60, 84.000), new Pose(48, 56.000))
                 )
                 .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(0))
                 .build();
@@ -154,53 +164,47 @@ public class BlueSideAutoClose9 extends OpMode {
         line5 = follower
                 .pathBuilder()
                 .addPath(
-                        new BezierLine(new Pose(44.000, 100.000), new Pose(47.000, 60.000))
+                        new BezierLine(new Pose(48, 56.000), new Pose(11, 56.000))
                 )
                 .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(0))
+
                 .build();
 
         line6 = follower
                 .pathBuilder()
                 .addPath(
-                        new BezierLine(new Pose(47.000, 60.000), new Pose(9.500, 60.000))
+                        new BezierLine(new Pose(11, 56.000), new Pose(21, 56.000))
                 )
                 .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(0))
-                .build();
-
-        line7 = follower
-                .pathBuilder()
+                .addPath(
+                        new BezierLine(new Pose(21, 56.000), new Pose(15, 56.000))
+                )
+                .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(0))
                 .addPath(
                         new BezierCurve(
-                                new Pose(10.500, 60.000),
-                                new Pose(46.000, 64.000), //80
-                                new Pose(44.000, 100.000)
-                        )
+                                new Pose(15, 56.000),
+                                new Pose(50,55),
+                                new Pose(50, 92.000))
                 )
-                .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(0))
+                .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(30))
                 .build();
 
         line8 = follower
                 .pathBuilder()
                 .addPath(
-                        new BezierLine(new Pose(44.000, 100.000), new Pose(30.000, 75.000))
+                        new BezierLine(new Pose(50, 92.000), new Pose(24, 90.000))
                 )
-                .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(0))
+                .setLinearHeadingInterpolation(Math.toRadians(30), Math.toRadians(0))
                 .build();
     }
 
     @Override
     public void init() {
-        List<LynxModule> allHubs = hardwareMap.getAll(LynxModule.class);
-        for (LynxModule hub : allHubs) {
+        for (LynxModule hub : hardwareMap.getAll(LynxModule.class)) {
             hub.setBulkCachingMode(LynxModule.BulkCachingMode.MANUAL);
         }
 
         AlliancePresets.setAllianceShooterTag(AlliancePresets.Alliance.BLUE.getTagId());
-
-        // Start webcam + pipeline
-
-        // Tracker remembers last seen 21/22/23 and writes AlliancePresets.currentCypher
-
 
         shooter = new StaticShooter(hardwareMap, telemetry);
         shooter.setTargetRPM(0);
@@ -209,8 +213,8 @@ public class BlueSideAutoClose9 extends OpMode {
 
         hood = new HoodSubsystem(hardwareMap);
         hood.setAutomatic(true);
-        outtakeBeamBreak = new BeamBreakHelper(hardwareMap, "outtakeBeamBreak", 0);
 
+        outtakeBeamBreak = new BeamBreakHelper(hardwareMap, "outtakeBeamBreak", 0);
         kickers = new Kickers(hardwareMap);
 
         follower = Constants.createFollower(hardwareMap);
@@ -220,6 +224,7 @@ public class BlueSideAutoClose9 extends OpMode {
                 "z1CSa", "z2CSa", "z3CSa",
                 "z1CSb", "z2CSb", "z3CSb");
         planner = new ShotOrderPlanner();
+
         turret = new ServoTurretTracker(hardwareMap, "turret");
         turret.setEnabled(true);
 
@@ -228,47 +233,32 @@ public class BlueSideAutoClose9 extends OpMode {
         kickers.resetZoneThree();
 
         follower.update();
-
         buildPaths();
+
         pathTimer = new Timer();
         pathTimer.resetTimer();
         setPathState(0);
 
         telemetry.addData("Status", "Initialized");
-        telemetry.addData("Auto:", "Red Side Auto Close 9");
+        telemetry.addData("Auto:", "Blue Side Auto Close 9 (Mirrored)");
         telemetry.update();
     }
 
     @Override
     public void init_loop() {
-        // Keep SRS/zone detection "warm" during init
         if (czd != null) {
             czd.update();
             initSnap = czd.getStableSnapshot();
         }
 
-        // Cap telemetry spam a bit
-        if (initSnapTimer.seconds() < (1.0 / INIT_SNAPSHOT_HZ)) return;
-        initSnapTimer.reset();
-
-        telemetry.addLine("=== INIT PREVIEW ===");
-        telemetry.addData("Cypher Tag", cypherId);
         telemetry.addData("Cipher", CIPHER);
-
-        telemetry.addLine("=== ZONE COLORS (Stable Snapshot) ===");
-        if (initSnap == null) {
-            telemetry.addLine("Snapshot: NULL (not stable / not ready)");
-        } else {
-            // If Snapshot has a nice toString, this alone might be enough:
-            telemetry.addData("Snapshot", initSnap.toString());
-
-            // If Snapshot exposes per-zone info, prefer explicit fields:
-            // (Uncomment and adjust names to match your Snapshot class)
+        if (initSnap != null) {
             telemetry.addData("Z1", "RAW:%s has=%s", initSnap.z1.color, initSnap.z1.hasBall);
             telemetry.addData("Z2", "RAW:%s has=%s", initSnap.z2.color, initSnap.z2.hasBall);
             telemetry.addData("Z3", "RAW:%s has=%s", initSnap.z3.color, initSnap.z3.hasBall);
+        } else {
+            telemetry.addLine("Snapshot: NULL (not stable / not ready)");
         }
-
         telemetry.update();
     }
 
@@ -277,19 +267,18 @@ public class BlueSideAutoClose9 extends OpMode {
         outtakeThread = new Thread(() -> {
             while (!Thread.interrupted()) {
                 outtakeBeamBreak.update();
-                try {
-                    Thread.sleep(1);
-                } catch (Exception e) {
-                    break;
-                }
+                try { Thread.sleep(1); } catch (Exception e) { break; }
             }
         });
-
         outtakeThread.start();
 
         pathTimer.resetTimer();
         setPathState(0);
-        // Ensure global is set even if the last init_loop was missed
+
+        int id = AlliancePresets.getCurrentCypher();
+        if (id == 21) CIPHER = ShotOrderPlanner.Cipher.GPP;
+        else if (id == 22) CIPHER = ShotOrderPlanner.Cipher.PGP;
+        else if (id == 23) CIPHER = ShotOrderPlanner.Cipher.PPG;
     }
 
     @Override
@@ -298,15 +287,10 @@ public class BlueSideAutoClose9 extends OpMode {
             hub.clearBulkCache();
         }
 
-        telemetry.addLine("=== INIT PREVIEW ===");
-        telemetry.addData("Cypher Tag", cypherId);
-        telemetry.addData("Cipher", CIPHER);
-        telemetry.addData("Tag id", cypherId);
-
         follower.update();
         czd.update();
-        shooter.periodic();
         hood.update();
+        shooter.periodic();
 
         Pose robotPose = follower.getPose();
         double robotX = robotPose.getX();
@@ -323,7 +307,6 @@ public class BlueSideAutoClose9 extends OpMode {
         turret.update(turretPose);
 
         shooter.setTargetRPM(RPM_MAX);
-
         hood.updateAutoHoodFromField(robotX, robotY, goalX, goalY);
 
         boolean shootingActive = (state != RunState.IDLE && state != RunState.DONE && state != RunState.ABORTED);
@@ -332,27 +315,16 @@ public class BlueSideAutoClose9 extends OpMode {
 
         autonomousPathUpdate();
 
-        telemetry.addLine("---- BLUE Side Auto Close 9 ----");
-        telemetry.addData("Follower busy?", follower.isBusy());
         telemetry.addData("Path State", pathState);
         telemetry.addData("Shot State", state);
-        telemetry.addData("Shooter RPM (meas)", shooter.getShooterVelocity());
-        telemetry.addData("Shooter RPM (cmd)", shooterCmdRpm);
-        telemetry.addData("Pose", "x=%.2f y=%.2f h=%.1f",
-                robotX, robotY, Math.toDegrees(robotHeadingRad));
-        telemetry.addData("Beam total", outtakeBeamBreak != null ? outtakeBeamBreak.getBallCount() : -1);
-        telemetry.addData("Beam run shots", ballsShotThisRun());
-        telemetry.addData("Planned shots", plannedShotsThisRun);
+        telemetry.addData("Pose", "x=%.2f y=%.2f h=%.1f", robotX, robotY, Math.toDegrees(robotHeadingRad));
         telemetry.update();
     }
 
     @Override
     public void stop() {
         follower.breakFollowing();
-
-        if (outtakeThread != null) {
-            outtakeThread.interrupt();
-        }
+        if (outtakeThread != null) outtakeThread.interrupt();
     }
 
     private void setPathState(int newState) {
@@ -370,16 +342,9 @@ public class BlueSideAutoClose9 extends OpMode {
         switch (pathState) {
             case 0:
                 if (!follower.isBusy()) {
+                    RPM_MAX = 3000;
                     follower.setMaxPower(1);
                     follower.followPath(line1);
-                    setPathState(-1);
-                }
-                break;
-
-            case -1:
-                if (!follower.isBusy()) {
-                    follower.setMaxPower(1);
-                    follower.followPath(line67);
                     setPathState(1);
                 }
                 break;
@@ -390,7 +355,6 @@ public class BlueSideAutoClose9 extends OpMode {
                         BeginShotSequenceIfIdle();
                         runStateMachine(shooter, kickers);
                     }
-
                     if (beamRunComplete() || state == RunState.DONE || pathTimer.getElapsedTimeSeconds() > 6.0) {
                         setPathState(2);
                     }
@@ -399,7 +363,9 @@ public class BlueSideAutoClose9 extends OpMode {
 
             case 2:
                 if (!follower.isBusy()) {
+                    follower.setMaxPower(0.5);
                     intake();
+                    RPM_MAX = 3100.0;
                     follower.followPath(line2);
                     setPathState(3);
                 }
@@ -407,27 +373,21 @@ public class BlueSideAutoClose9 extends OpMode {
 
             case 3:
                 if (!follower.isBusy()) {
+                    follower.setMaxPower(1);
                     follower.followPath(line3);
-                    setPathState(4);
-                }
-                break;
-
-            case 4:
-                if (!follower.isBusy()) {
-                    follower.followPath(line4);
-                    stopIntake();
                     setPathState(5);
                 }
                 break;
 
             case 5:
                 if (!follower.isBusy()) {
+                    outtake();
                     if (shooter.isAtTargetThreshold()) {
                         BeginShotSequenceIfIdle();
                         runStateMachine(shooter, kickers);
                     }
-
                     if (beamRunComplete() || state == RunState.DONE || pathTimer.getElapsedTimeSeconds() > 6.0) {
+                        intake();
                         setPathState(6);
                     }
                 }
@@ -436,33 +396,37 @@ public class BlueSideAutoClose9 extends OpMode {
             case 6:
                 if (!follower.isBusy()) {
                     intake();
-                    follower.followPath(line5);
+                    follower.followPath(line4);
                     setPathState(7);
                 }
                 break;
 
             case 7:
                 if (!follower.isBusy()) {
-                    follower.followPath(line6);
+                    follower.setMaxPower(0.45);
+                    follower.followPath(line5);
                     setPathState(8);
                 }
                 break;
 
             case 8:
                 if (!follower.isBusy()) {
-                    follower.followPath(line7);
+                    follower.setMaxPower(1);
+                    RPM_MAX = 2850;
+                    follower.followPath(line6);
                     setPathState(9);
                 }
                 break;
 
             case 9:
                 if (!follower.isBusy()) {
+                    outtake();
                     if (shooter.isAtTargetThreshold()) {
                         BeginShotSequenceIfIdle();
                         runStateMachine(shooter, kickers);
                     }
-
                     if (beamRunComplete() || state == RunState.DONE || pathTimer.getElapsedTimeSeconds() > 6.0) {
+                        intake();
                         setPathState(99);
                     }
                 }
@@ -470,10 +434,10 @@ public class BlueSideAutoClose9 extends OpMode {
 
             case 99:
                 if (!follower.isBusy()) {
-                    follower.followPath(line8,false);
+                    follower.followPath(line8, false);
                     setPathState(100);
                 }
-                return;
+                break;
 
             case 100:
                 if (!follower.isBusy()) {
@@ -493,17 +457,12 @@ public class BlueSideAutoClose9 extends OpMode {
         }
     }
 
+    // ===================== SHOT SEQUENCE HELPERS =====================
     private void BeginShotSequenceIfIdle() {
         if (state != RunState.IDLE && state != RunState.DONE && state != RunState.ABORTED) return;
-
         ColourZoneDetection.Snapshot s = czd.getRawSnapshot();
         if (s == null) return;
-
         snap = s;
-
-        telemetry.addData("Z1", "RAW:%s has=%s", s.z1.color, s.z1.hasBall);
-        telemetry.addData("Z2", "RAW:%s has=%s", s.z2.color, s.z2.hasBall);
-        telemetry.addData("Z3", "RAW:%s has=%s", s.z3.color, s.z3.hasBall);
         beginRun(planner, snap, shooter, kickers);
     }
 
@@ -522,7 +481,6 @@ public class BlueSideAutoClose9 extends OpMode {
         }
 
         plan = planner.plan(CIPHER, snap, force);
-
         stepIdx = 0;
         plannedShotsThisRun = (plan == null) ? 0 : plan.size();
 
@@ -597,25 +555,6 @@ public class BlueSideAutoClose9 extends OpMode {
         }
     }
 
-    private double interpRpm(double dist) {
-        if (dist <= RPM_D0_IN) return RPM_P0;
-        if (dist >= RPM_D4_IN) return RPM_P4;
-
-        if (dist <= RPM_D1_IN) return lerp(RPM_D0_IN, RPM_P0, RPM_D1_IN, RPM_P1, dist);
-        if (dist <= RPM_D2_IN) return lerp(RPM_D1_IN, RPM_P1, RPM_D2_IN, RPM_P2, dist);
-        if (dist <= RPM_D3_IN) return lerp(RPM_D2_IN, RPM_P2, RPM_D3_IN, RPM_P3, dist);
-        return lerp(RPM_D3_IN, RPM_P3, RPM_D4_IN, RPM_P4, dist);
-    }
-
-    private static double lerp(double x0, double y0, double x1, double y1, double x) {
-        double t = (x - x0) / (x1 - x0);
-        return y0 + t * (y1 - y0);
-    }
-
-    private static double clamp(double v, double lo, double hi) {
-        return Math.max(lo, Math.min(hi, v));
-    }
-
     private int ballsShotThisRun() {
         if (outtakeBeamBreak == null) return 0;
         return outtakeBeamBreak.getBallCount() - beamCountAtRunStart;
@@ -625,11 +564,7 @@ public class BlueSideAutoClose9 extends OpMode {
         return plannedShotsThisRun > 0 && ballsShotThisRun() >= plannedShotsThisRun;
     }
 
-    private void intake() {
-        intake.intakeChub(1);
-    }
-
-    private void stopIntake() {
-        intake.stop();
-    }
+    private void intake() { intake.intake(1); }        // keep same as your Red Close 9
+    private void outtake() { intake.intake(-1); }
+    private void stopIntake() { intake.stop(); }
 }

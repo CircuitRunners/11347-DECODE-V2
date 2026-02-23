@@ -19,8 +19,8 @@ public class ServoTurretTracker extends SubsystemBase {
     private double targetY = 0.0;
 
     // ===================== Servo limits =====================
-    public static double SERVO_MIN = 0.27;
-    public static double SERVO_MAX = 0.82;
+    public static double SERVO_MIN = 0.28;
+    public static double SERVO_MAX = 0.85;
 
     // Robot-relative trim
     public static double TURRET_TRIM_DEG = 0.0;
@@ -43,11 +43,11 @@ public class ServoTurretTracker extends SubsystemBase {
     public static double TURRET_OFFSET_Y_IN = 0.0;
 
     // ===================== Calibration (deg -> servo pos) =====================
-    public static double A0_DEG = 0.0;   public static double P0 = 0.29;
-    public static double A1_DEG = 45.0;  public static double P1 = 0.4;
-    public static double A2_DEG = 90.0;  public static double P2 = 0.545;
-    public static double A3_DEG = 135.0; public static double P3 = 0.67;
-    public static double A4_DEG = 180.0; public static double P4 = 0.8;
+    public static double A0_DEG = 0.0;   public static double P0 = 0.31;
+    public static double A1_DEG = 45.0;  public static double P1 = 0.44;
+    public static double A2_DEG = 90.0;  public static double P2 = 0.567;
+    public static double A3_DEG = 135.0; public static double P3 = 0.7;
+    public static double A4_DEG = 180.0; public static double P4 = 0.83;
 
     // ===================== Telemetry =====================
     private double lastTargetFieldDeg = 0.0;
