@@ -12,7 +12,6 @@ import org.firstinspires.ftc.teamcode.support.OdoAbsoluteHeadingTracking
 class TurretAutoAim(
     private val drive : MecanumDrivebase,
     private val turret : ServoTurretTracker,
-    private val odoHeading : OdoAbsoluteHeadingTracking,
     private val turretTargetPose : Pose,
     private val isRed : Boolean
 ) : CommandBase() {
@@ -28,7 +27,7 @@ class TurretAutoAim(
         val pose = drive.pose
         val x = pose.x
         val y = pose.y
-        val h = odoHeading.headingRad
+        val h = pose.heading
 
         val turretPose = Pose2D(
             DistanceUnit.INCH,

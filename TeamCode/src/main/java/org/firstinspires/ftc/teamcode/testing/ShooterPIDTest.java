@@ -82,7 +82,7 @@ public class ShooterPIDTest extends CommandOpMode {
             // Based on achievable max ticks/s reported by the SDK
             // Good starting point for later tuning in Dashboard.
             double maxTps = shooter1.getMotorType().getAchieveableMaxTicksPerSecond();
-            if (maxTps <= 0) maxTps = (1620.0 * TICKS_PER_REV) / 60.0;
+            if (maxTps <= 0) maxTps = (6000.0 * TICKS_PER_REV) / 60.0;
             // REV internal scaling expects kF around 32767/maxVelocity as a reasonable baseline
             kFLocal = 32767.0 / maxTps;
         }
@@ -129,6 +129,8 @@ public class ShooterPIDTest extends CommandOpMode {
         packet.put("error_motor_rpm", errorMotorRPM);
         packet.put("motor_ticks_per_sec", currTicksPerSec);
         packet.put("kF Local Value: ", kfValue);
+        packet.put("shooter 1: ", shooter1.getVelocity());
+        packet.put("shooter 2: ", shooter2.getVelocity());
         dash.sendTelemetryPacket(packet);
     }
 }

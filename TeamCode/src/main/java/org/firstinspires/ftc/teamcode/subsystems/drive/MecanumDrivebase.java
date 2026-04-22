@@ -44,13 +44,9 @@ public class MecanumDrivebase extends SubsystemBase {
             setStartingPose();
         }
 
-        frontLeftMotor.setDirection(DcMotorSimple.Direction.REVERSE);
-        backLeftMotor.setDirection(DcMotorSimple.Direction.REVERSE);
-
         DcMotorEx[] motors = new DcMotorEx[]{
                 frontLeftMotor,frontRightMotor, backLeftMotor, backRightMotor
         };
-
 
         for (DcMotorEx motor : motors) {
             motor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
@@ -72,6 +68,7 @@ public class MecanumDrivebase extends SubsystemBase {
         backLeftMotor.setPower(backLeftPower);
         backRightMotor.setPower(backRightPower);
     }
+
     public void drive(double forward, double right, double rotate) {
         double frontLeftPower = forward + right + rotate;
         double frontRightPower = forward - right - rotate;
@@ -114,6 +111,6 @@ public class MecanumDrivebase extends SubsystemBase {
     }
 
     public void setStartingPose() {
-        follower.setPose(new Pose(72, 72, Math.toRadians(0.0)));
+        follower.setPose(new Pose(72, 72, Math.toRadians(180.0)));
     }
 }

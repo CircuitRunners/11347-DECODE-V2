@@ -33,10 +33,10 @@ public class StaticShooter extends SubsystemBase {
 
     // --- PIDF Coefficients ---
     /// Working values for 2 6k motors as of 12/20/25
-    public static double kP = 150;
+    public static double kP = 300;
     public static double kI = 0.0;
-    public static double kD = 0.5;
-    public static double kF = 17;
+    public static double kD = 10.0;
+    public static double kF = 15.2;
 
     /**
      * Initialises the shooter in the hardwareMap, sets default shooter values
@@ -191,8 +191,8 @@ public class StaticShooter extends SubsystemBase {
     public void periodic() {
         double targetMotorRPM = TARGET_RPM / GEAR_RATIO;
         double targetTicksPerSec = (targetMotorRPM * TICKS_PER_REV) / 60.0;
-        shooter1.setVelocity(targetTicksPerSec);
-        shooter2.setVelocity(targetTicksPerSec);
+//        shooter1.setVelocity(targetTicksPerSec);
+//        shooter2.setVelocity(targetTicksPerSec);
 
         active = Math.abs(getTargetRPM()) > 0;
     }

@@ -9,14 +9,12 @@ import org.firstinspires.ftc.teamcode.support.GobildaRGBIndicatorHelper
 
 class IntakeCommand(
     private val inSubsystem : IntakeSubsystem,
-    private val driver : GamepadEx,
-    private val czd : ColourZoneDetection,
-    private val rgb : GobildaRGBIndicatorHelper
+    private val driver : GamepadEx
 ) : CommandBase() {
     private var wasIntaking = false
 
     init {
-        addRequirements(inSubsystem, czd, rgb)
+        addRequirements(inSubsystem)
     }
 
     override fun execute() {
@@ -29,21 +27,21 @@ class IntakeCommand(
         } else {
             inSubsystem.stop()
 
-            if (wasIntaking) {
-                czd.update()
-                val snapshot = czd.rawSnapshot
-                val ballCount =
-                    (if (snapshot.z1.hasBall) 1 else 0) +
-                    (if (snapshot.z2.hasBall) 1 else 0) +
-                    (if (snapshot.z3.hasBall) 1 else 0)
-
-                when (ballCount) {
-                    1 -> rgb.setColour(GobildaRGBIndicatorHelper.Colour.YELLOW)
-                    2 -> rgb.setColour(GobildaRGBIndicatorHelper.Colour.GREEN)
-                    3 -> rgb.setColour(GobildaRGBIndicatorHelper.Colour.VIOLET)
-                    else -> rgb.setColour(GobildaRGBIndicatorHelper.Colour.RED)
-                }
-            }
+//            if (wasIntaking) {
+//                czd.update()
+//                val snapshot = czd.rawSnapshot
+//                val ballCount =
+//                    (if (snapshot.z1.hasBall) 1 else 0) +
+//                    (if (snapshot.z2.hasBall) 1 else 0) +
+//                    (if (snapshot.z3.hasBall) 1 else 0)
+//
+//                when (ballCount) {
+//                    1 -> rgb.setColour(GobildaRGBIndicatorHelper.Colour.YELLOW)
+//                    2 -> rgb.setColour(GobildaRGBIndicatorHelper.Colour.GREEN)
+//                    3 -> rgb.setColour(GobildaRGBIndicatorHelper.Colour.VIOLET)
+//                    else -> rgb.setColour(GobildaRGBIndicatorHelper.Colour.RED)
+//                }
+//            }
         }
 
         wasIntaking = isIntaking

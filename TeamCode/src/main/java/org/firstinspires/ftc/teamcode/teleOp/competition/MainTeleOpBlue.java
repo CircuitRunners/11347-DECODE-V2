@@ -7,6 +7,7 @@ import com.arcrobotics.ftclib.command.PerpetualCommand;
 import com.arcrobotics.ftclib.gamepad.GamepadEx;
 import com.arcrobotics.ftclib.gamepad.GamepadKeys;
 import com.pedropathing.geometry.Pose;
+import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 
 import org.firstinspires.ftc.teamcode.auto.BulkCacheCommand;
@@ -29,6 +30,7 @@ import org.firstinspires.ftc.teamcode.support.OdoAbsoluteHeadingTracking;
 
 import java.util.Locale;
 
+@Disabled
 @Config
 @TeleOp(name="MainTeleOpBLUE", group="1")
 public class MainTeleOpBlue extends CommandOpMode {
@@ -45,7 +47,6 @@ public class MainTeleOpBlue extends CommandOpMode {
     private GamepadEx reseter;
     private ColourZoneDetection czd;
     private GobildaRGBIndicatorHelper rgb;
-    private OdoAbsoluteHeadingTracking odoHeading;
     private final ShotOrderPlanner shotPlanner = new ShotOrderPlanner();
     private ShotOrderPlanner.Cipher cipher = ShotOrderPlanner.Cipher.PPG;
     private boolean isRed;
@@ -87,10 +88,6 @@ public class MainTeleOpBlue extends CommandOpMode {
                 "z1CSa", "z2CSa", "z3CSa",
                 "z1CSb", "z2CSb", "z3CSb");
         rgb = new GobildaRGBIndicatorHelper(hardwareMap);
-        odoHeading = new OdoAbsoluteHeadingTracking(
-                intake.leftOdoMotor(),
-                intake.rightOdoMotor()
-        );
 
         AlliancePresets.setAllianceShooterTag(AlliancePresets.Alliance.BLUE.getTagId());
         isRed = AlliancePresets.getAllianceShooterTag() == AlliancePresets.Alliance.RED.getTagId();
@@ -99,7 +96,7 @@ public class MainTeleOpBlue extends CommandOpMode {
 
         // ============ Commands ============
         drive.setDefaultCommand(new DriveCommand(drive, driver, isRed));
-        intake.setDefaultCommand(new IntakeCommand(intake, driver, czd, rgb));
+//        intake.setDefaultCommand(new IntakeCommand(intake, driver, czd, rgb));
 
         reseter.getGamepadButton(GamepadKeys.Button.DPAD_LEFT)
                         .whenPressed(new InstantCommand(()->
@@ -124,7 +121,6 @@ public class MainTeleOpBlue extends CommandOpMode {
         reseter.getGamepadButton(GamepadKeys.Button.B)
                         .whenPressed(new InstantCommand(()-> {
                             drive.setPose(new Pose(drive.getPose().getX(), drive.getPose().getY(), Math.toRadians(0.0)));
-                            odoHeading.reset(Math.toRadians(0.0));
                         }));
 
         driver.getGamepadButton(GamepadKeys.Button.LEFT_BUMPER)
@@ -151,7 +147,7 @@ public class MainTeleOpBlue extends CommandOpMode {
                         )),
                 new PerpetualCommand(
                         new TurretAutoAim(
-                                drive, turret, odoHeading, TARGET_GOAL_POSE, false
+                                drive, turret, TARGET_GOAL_POSE, false
                         ))
         );
 
@@ -187,7 +183,6 @@ public class MainTeleOpBlue extends CommandOpMode {
         telemetry.addData("loop avg (ms)", "%.3f", avgLoopMs);
         telemetry.addData("loop max (ms)", "%.3f", maxLoopMs);
         telemetry.addData("Cipher", cipher);
-        telemetry.addData("OdoHeading", odoHeading.getHeadingDeg());
         telemetry.addData("Position", data);
         telemetry.update();
     }
