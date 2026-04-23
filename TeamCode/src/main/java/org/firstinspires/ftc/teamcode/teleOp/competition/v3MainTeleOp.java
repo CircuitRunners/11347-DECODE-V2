@@ -10,13 +10,17 @@ import com.pedropathing.geometry.Pose;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 
 import org.firstinspires.ftc.teamcode.auto.BulkCacheCommand;
+import org.firstinspires.ftc.teamcode.commands.AutoSortAndExecute;
 import org.firstinspires.ftc.teamcode.commands.CalculateHoodPoseAndVelocity;
 import org.firstinspires.ftc.teamcode.commands.DriveCommand;
 import org.firstinspires.ftc.teamcode.commands.IntakeCommand;
+import org.firstinspires.ftc.teamcode.commands.ShotOrderPlanner;
 import org.firstinspires.ftc.teamcode.subsystems.drive.MecanumDrivebase;
 import org.firstinspires.ftc.teamcode.subsystems.intake.IntakeSubsystem;
 import org.firstinspires.ftc.teamcode.subsystems.shooter.HoodSubsystem;
 import org.firstinspires.ftc.teamcode.subsystems.shooter.StaticShooter;
+import org.firstinspires.ftc.teamcode.subsystems.transfer.ColourZoneDetection;
+import org.firstinspires.ftc.teamcode.subsystems.transfer.Kickers;
 
 import java.util.Locale;
 
@@ -28,14 +32,25 @@ public class v3MainTeleOp extends CommandOpMode {
     private IntakeSubsystem intake;
     private HoodSubsystem hood;
     private StaticShooter shooter;
+    private Kickers kickers;
 
     // ========== SOFTWARE ==========
+    private ColourZoneDetection czd;
+    private final ShotOrderPlanner shotPlanner = new ShotOrderPlanner();
+    private ShotOrderPlanner.Cipher cipher = ShotOrderPlanner.Cipher.PPG;
     private boolean isRed = false;
     private final Pose TARGET_GOAL_POSE = new Pose(0, 136);
     private final static double SCORE_ANGLE = Math.toRadians(-30);
     private final static double HOOD_MAX_ANGLE = Math.toRadians(67);
     private final static double HOOD_MIN_ANGLE = Math.toRadians(0);
     private GamepadEx driver;
+
+    // ============ Loop Time Stuff ============
+    private long lastLoopNs = 0;
+    private double loopMs = 0;
+    private double avgLoopMs = 0;
+    private double maxLoopMs = 0;
+    private int loopCount = 0;
 
     @Override
     public void initialize() {
@@ -48,8 +63,13 @@ public class v3MainTeleOp extends CommandOpMode {
         intake = new IntakeSubsystem(hardwareMap, telemetry);
         hood = new HoodSubsystem(hardwareMap);
 
+        kickers = new Kickers(hardwareMap);
+
         // ========== SOFTWARE ==========
         driver = new GamepadEx(gamepad1);
+        czd = new ColourZoneDetection(hardwareMap,
+                "z1CSa", "z2CSa", "z3CSa",
+                "z1CSb", "z2CSb", "z3CSb");
 
         // ========== COMMANDS ==========
         drive.setDefaultCommand(new DriveCommand(drive, driver, isRed));
@@ -60,8 +80,21 @@ public class v3MainTeleOp extends CommandOpMode {
                     drive.setPose(new Pose(drive.getPose().getX(), drive.getPose().getY(), Math.toRadians(0.0)));
                 }));
 
+        driver.getGamepadButton(GamepadKeys.Button.LEFT_BUMPER)
+                .whenPressed(new AutoSortAndExecute(
+                        czd,
+                        kickers,
+                        shotPlanner,
+                        () -> cipher,
+                        0.18,
+                        0.12,
+                        false,
+                        true,
+                        telemetry
+                ));
+
         // ========== REGISTER ==========
-        register(shooter, hood);
+        register(shooter, kickers, hood);
         schedule(new BulkCacheCommand(hardwareMap),
                 new PerpetualCommand(
                         new CalculateHoodPoseAndVelocity(
@@ -81,7 +114,16 @@ public class v3MainTeleOp extends CommandOpMode {
 
     @Override
     public void run() {
+        long nowNs = System.nanoTime();
+        if (lastLoopNs != 0) {
+            loopMs = (nowNs - lastLoopNs) / 1e6;
+            loopCount++;
+            avgLoopMs += (loopMs - avgLoopMs) / loopCount;
+            if (loopMs > maxLoopMs) maxLoopMs = loopMs;
+        }
+        lastLoopNs = nowNs;
         super.run();
+
         String data = String.format(Locale.US,
                 "{X: %.3f, Y: %.3f, H: %.3f}",
                 drive.getPose().getX(),
@@ -89,6 +131,10 @@ public class v3MainTeleOp extends CommandOpMode {
                 drive.getPose().getHeading()
         );
 
+        telemetry.addData("loop dt (ms)", "%.3f", loopMs);
+        telemetry.addData("loop avg (ms)", "%.3f", avgLoopMs);
+        telemetry.addData("loop max (ms)", "%.3f", maxLoopMs);
+        telemetry.addData("Cipher", cipher);
         telemetry.addData("Position", data);
         telemetry.update();
     }

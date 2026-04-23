@@ -191,8 +191,8 @@ public class StaticShooter extends SubsystemBase {
     public void periodic() {
         double targetMotorRPM = TARGET_RPM / GEAR_RATIO;
         double targetTicksPerSec = (targetMotorRPM * TICKS_PER_REV) / 60.0;
-//        shooter1.setVelocity(targetTicksPerSec);
-//        shooter2.setVelocity(targetTicksPerSec);
+        shooter1.setVelocity(targetTicksPerSec);
+        shooter2.setVelocity(targetTicksPerSec);
 
         active = Math.abs(getTargetRPM()) > 0;
     }

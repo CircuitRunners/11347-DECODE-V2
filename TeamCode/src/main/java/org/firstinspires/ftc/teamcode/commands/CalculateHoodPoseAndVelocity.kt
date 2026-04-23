@@ -56,7 +56,7 @@ class CalculateHoodPoseAndVelocity(
 
         val hoodPos = (maxHoodTicks - Range.scale(hoodAngle, minHoodAngle, maxHoodAngle, 0.05, 0.8))
 
-//        shooter.targetRPM = motorRPM
+        shooter.targetRPM = motorRPM
         hood.aimScoring(hoodPos)
     }
 
