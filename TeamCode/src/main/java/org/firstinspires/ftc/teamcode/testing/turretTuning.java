@@ -29,9 +29,9 @@ public class turretTuning extends CommandOpMode {
     public void run() {
         super.run();
 
-        turret.setTarget(turretTarget);
+//        turret.setTarget(turretTarget);
 
-        telemetry.addData("Target: ", turret.getTarget());
+        telemetry.addData("Target: ", turret.getTargetTicks());
         telemetry.addData("Current Pose: ", turret.getCurrentEncoderPos());
         telemetry.addData("Current (A): ", turret.getCurrent());
         telemetry.addData("At Limit? ", turret.isAtLimit());

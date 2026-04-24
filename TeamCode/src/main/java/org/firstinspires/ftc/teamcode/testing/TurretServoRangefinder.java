@@ -29,8 +29,6 @@ public class TurretServoRangefinder extends CommandOpMode {
 
         telemetry.addLine("initDone");
         telemetry.update();
-//        drive.setStaringPose2D();
-        drive.setStartingPose();
     }
 
     @Override

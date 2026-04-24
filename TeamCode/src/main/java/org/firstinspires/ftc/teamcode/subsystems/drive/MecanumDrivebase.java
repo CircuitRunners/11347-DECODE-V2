@@ -40,8 +40,10 @@ public class MecanumDrivebase extends SubsystemBase {
         this.isRed = isRed;
         this.isAuto = isAuto;
 
-        if (!isAuto) {
-            setStartingPose();
+        if (!isAuto && !isRed) {
+            setStartingPoseBlue();
+        } else if (!isAuto) {
+            setStartingPoseRed();
         }
 
         DcMotorEx[] motors = new DcMotorEx[]{
@@ -83,7 +85,7 @@ public class MecanumDrivebase extends SubsystemBase {
 
         Pose pos = follower.getPose();
 
-        double robotAngle = reverseHeading ? pos.getHeading() : pos.getHeading() - Math.toRadians(180);
+        double robotAngle = pos.getHeading();
         double theta = Math.atan2(forward, right);
         double r = Math.hypot(forward, right);
         theta = AngleUnit.normalizeRadians(theta - robotAngle);
@@ -110,7 +112,10 @@ public class MecanumDrivebase extends SubsystemBase {
         follower.setPose(pose);
     }
 
-    public void setStartingPose() {
+    public void setStartingPoseBlue() {
+        follower.setPose(new Pose(72, 72, Math.toRadians(0.0)));
+    }
+    public void setStartingPoseRed() {
         follower.setPose(new Pose(72, 72, Math.toRadians(180.0)));
     }
 }

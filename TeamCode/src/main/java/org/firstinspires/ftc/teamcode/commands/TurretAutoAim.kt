@@ -6,21 +6,21 @@ import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit
 import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit
 import org.firstinspires.ftc.robotcore.external.navigation.Pose2D
 import org.firstinspires.ftc.teamcode.subsystems.drive.MecanumDrivebase
-import org.firstinspires.ftc.teamcode.subsystems.shooter.ServoTurretTracker
-import org.firstinspires.ftc.teamcode.support.OdoAbsoluteHeadingTracking
+import org.firstinspires.ftc.teamcode.subsystems.shooter.MotorTurretTracker
 
 class TurretAutoAim(
-    private val drive : MecanumDrivebase,
-    private val turret : ServoTurretTracker,
-    private val turretTargetPose : Pose,
-    private val isRed : Boolean
+    private val drive: MecanumDrivebase,
+    private val turret: MotorTurretTracker,
+    private var turretTargetPose: Pose,
+    private val isRed: Boolean
 ) : CommandBase() {
+
     init {
         addRequirements(turret)
     }
 
     override fun initialize() {
-        turret.isEnabled = true
+        turret.setEnabled(true)
     }
 
     override fun execute() {
@@ -37,25 +37,26 @@ class TurretAutoAim(
             h
         )
 
-        val targetX : Double = turretTargetPose.x
-        val targetY : Double = turretTargetPose.y
-
-        var gx : Double = targetX
-        val gy : Double = targetY
+        var gx = turretTargetPose.x
+        val gy = turretTargetPose.y
 
         if (y < 60) {
-            if (isRed) {
-                gx -= 2
-            } else {
-                gx -= 2
-            }
+//            if (isRed) {
+//                gx -= 2.0
+//            } else {
+//                gx -= 2.0
+//            }
         }
 
         turret.setTargetFieldPointInches(gx, gy)
-        turret.update(turretPose)
+        turret.updateAim(turretPose)
     }
 
     override fun end(interrupted: Boolean) {
-        turret.isEnabled = false
+        turret.setEnabled(false)
+    }
+
+    fun setTurretTargetPose(newTarget: Pose) {
+        turretTargetPose = newTarget
     }
 }

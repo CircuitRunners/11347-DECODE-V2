@@ -15,9 +15,11 @@ import org.firstinspires.ftc.teamcode.commands.CalculateHoodPoseAndVelocity;
 import org.firstinspires.ftc.teamcode.commands.DriveCommand;
 import org.firstinspires.ftc.teamcode.commands.IntakeCommand;
 import org.firstinspires.ftc.teamcode.commands.ShotOrderPlanner;
+import org.firstinspires.ftc.teamcode.commands.TurretAutoAim;
 import org.firstinspires.ftc.teamcode.subsystems.drive.MecanumDrivebase;
 import org.firstinspires.ftc.teamcode.subsystems.intake.IntakeSubsystem;
 import org.firstinspires.ftc.teamcode.subsystems.shooter.HoodSubsystem;
+import org.firstinspires.ftc.teamcode.subsystems.shooter.MotorTurretTracker;
 import org.firstinspires.ftc.teamcode.subsystems.shooter.StaticShooter;
 import org.firstinspires.ftc.teamcode.subsystems.transfer.ColourZoneDetection;
 import org.firstinspires.ftc.teamcode.subsystems.transfer.Kickers;
@@ -33,13 +35,15 @@ public class v3MainTeleOp extends CommandOpMode {
     private HoodSubsystem hood;
     private StaticShooter shooter;
     private Kickers kickers;
+    private MotorTurretTracker turret;
 
     // ========== SOFTWARE ==========
     private ColourZoneDetection czd;
     private final ShotOrderPlanner shotPlanner = new ShotOrderPlanner();
     private ShotOrderPlanner.Cipher cipher = ShotOrderPlanner.Cipher.PPG;
-    private boolean isRed = false;
-    private final Pose TARGET_GOAL_POSE = new Pose(0, 136);
+    private boolean isRed = true;
+    private boolean firstRun = true;
+    private final Pose TARGET_GOAL_POSE = new Pose(160, 136);
     private final static double SCORE_ANGLE = Math.toRadians(-30);
     private final static double HOOD_MAX_ANGLE = Math.toRadians(67);
     private final static double HOOD_MIN_ANGLE = Math.toRadians(0);
@@ -59,6 +63,10 @@ public class v3MainTeleOp extends CommandOpMode {
 
         shooter = new StaticShooter(hardwareMap, telemetry);
         shooter.setTargetRPM(0);
+
+        turret = new MotorTurretTracker(hardwareMap, isRed);
+        turret.zeroAtStartupIfOnLimit();
+        turret.setEnabled(false);
 
         intake = new IntakeSubsystem(hardwareMap, telemetry);
         hood = new HoodSubsystem(hardwareMap);
@@ -94,18 +102,22 @@ public class v3MainTeleOp extends CommandOpMode {
                 ));
 
         // ========== REGISTER ==========
-        register(shooter, kickers, hood);
+        register(shooter, kickers, hood, turret);
         schedule(new BulkCacheCommand(hardwareMap),
                 new PerpetualCommand(
                         new CalculateHoodPoseAndVelocity(
                                 drive, shooter, hood, TARGET_GOAL_POSE,
                                 0.5, 20.0,
                                 SCORE_ANGLE, HOOD_MIN_ANGLE, HOOD_MAX_ANGLE
+                        )),
+                new PerpetualCommand(
+                        new TurretAutoAim(
+                                drive, turret, TARGET_GOAL_POSE, isRed
                         ))
         );
 
         // ========== SET START POSE ==========
-        drive.setStartingPose();
+
 
         // ========== TELEMETRY ==========
         telemetry.addLine("Init Done");
@@ -131,9 +143,15 @@ public class v3MainTeleOp extends CommandOpMode {
                 drive.getPose().getHeading()
         );
 
+        if (firstRun) {
+            turret.setEnabled(true);
+            firstRun = !firstRun;
+        }
+
         telemetry.addData("loop dt (ms)", "%.3f", loopMs);
         telemetry.addData("loop avg (ms)", "%.3f", avgLoopMs);
         telemetry.addData("loop max (ms)", "%.3f", maxLoopMs);
+        telemetry.addData("Turret Target", turret.getTargetTicks());
         telemetry.addData("Cipher", cipher);
         telemetry.addData("Position", data);
         telemetry.update();

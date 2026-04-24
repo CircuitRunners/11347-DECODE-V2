@@ -144,15 +144,15 @@ public class MainTeleOpBlue extends CommandOpMode {
                                 drive, shooter, hood, TARGET_GOAL_POSE,
                                 5.0, 20.0, SCORE_ANGLE,
                                 HOOD_MIN_ANGLE, HOOD_MAX_ANGLE
-                        )),
-                new PerpetualCommand(
-                        new TurretAutoAim(
-                                drive, turret, TARGET_GOAL_POSE, false
                         ))
+//                new PerpetualCommand(
+//                        new TurretAutoAim(
+//                                drive, turret, TARGET_GOAL_POSE, false
+//                        ))
         );
 
         // ============ Set Start Pose ============
-        drive.setStartingPose();
+        drive.setStartingPoseBlue();
         rgb.setColour(GobildaRGBIndicatorHelper.Colour.GREEN);
 
         // ============ Telemetry ============
