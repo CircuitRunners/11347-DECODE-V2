@@ -38,14 +38,24 @@ class TurretAutoAim(
         )
 
         var gx = turretTargetPose.x
-        val gy = turretTargetPose.y
+        var gy = turretTargetPose.y
 
         if (y < 60) {
-//            if (isRed) {
-//                gx -= 2.0
-//            } else {
-//                gx -= 2.0
-//            }
+            if (isRed) {
+                gx += 2.0
+                gy += 12.0
+            } else {
+                gx += 2.0
+                gy += 10.0
+            }
+        } else if (y > 108) {
+            if (isRed) {
+                gx -= 0.0
+                gy -= 4.0
+            } else {
+                gx -= 0.0
+                gy -= 4.0
+            }
         }
 
         turret.setTargetFieldPointInches(gx, gy)

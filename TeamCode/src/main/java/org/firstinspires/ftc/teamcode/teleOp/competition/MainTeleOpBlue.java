@@ -14,9 +14,7 @@ import org.firstinspires.ftc.teamcode.auto.BulkCacheCommand;
 import org.firstinspires.ftc.teamcode.commands.AutoSortAndExecute;
 import org.firstinspires.ftc.teamcode.commands.CalculateHoodPoseAndVelocity;
 import org.firstinspires.ftc.teamcode.commands.DriveCommand;
-import org.firstinspires.ftc.teamcode.commands.IntakeCommand;
 import org.firstinspires.ftc.teamcode.commands.ShotOrderPlanner;
-import org.firstinspires.ftc.teamcode.commands.TurretAutoAim;
 import org.firstinspires.ftc.teamcode.subsystems.drive.MecanumDrivebase;
 import org.firstinspires.ftc.teamcode.subsystems.intake.IntakeSubsystem;
 import org.firstinspires.ftc.teamcode.subsystems.shooter.HoodSubsystem;
@@ -26,7 +24,6 @@ import org.firstinspires.ftc.teamcode.subsystems.transfer.ColourZoneDetection;
 import org.firstinspires.ftc.teamcode.subsystems.transfer.Kickers;
 import org.firstinspires.ftc.teamcode.support.AlliancePresets;
 import org.firstinspires.ftc.teamcode.support.GobildaRGBIndicatorHelper;
-import org.firstinspires.ftc.teamcode.support.OdoAbsoluteHeadingTracking;
 
 import java.util.Locale;
 
@@ -152,7 +149,7 @@ public class MainTeleOpBlue extends CommandOpMode {
         );
 
         // ============ Set Start Pose ============
-        drive.setStartingPoseBlue();
+        drive.setStartingPoseRed();
         rgb.setColour(GobildaRGBIndicatorHelper.Colour.GREEN);
 
         // ============ Telemetry ============

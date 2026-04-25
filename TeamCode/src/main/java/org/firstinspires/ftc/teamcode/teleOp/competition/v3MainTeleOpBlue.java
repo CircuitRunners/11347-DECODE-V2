@@ -28,7 +28,7 @@ import java.util.Locale;
 
 @TeleOp
 @Config
-public class v3MainTeleOp extends CommandOpMode {
+public class v3MainTeleOpBlue extends CommandOpMode {
     // ========== HARDWARE ==========
     private MecanumDrivebase drive;
     private IntakeSubsystem intake;
@@ -41,9 +41,9 @@ public class v3MainTeleOp extends CommandOpMode {
     private ColourZoneDetection czd;
     private final ShotOrderPlanner shotPlanner = new ShotOrderPlanner();
     private ShotOrderPlanner.Cipher cipher = ShotOrderPlanner.Cipher.PPG;
-    private boolean isRed = true;
+    private boolean isRed = false;
     private boolean firstRun = true;
-    private final Pose TARGET_GOAL_POSE = new Pose(160, 136);
+    private final Pose TARGET_GOAL_POSE = new Pose(-6, 134);
     private final static double SCORE_ANGLE = Math.toRadians(-30);
     private final static double HOOD_MAX_ANGLE = Math.toRadians(67);
     private final static double HOOD_MIN_ANGLE = Math.toRadians(0);
@@ -94,10 +94,23 @@ public class v3MainTeleOp extends CommandOpMode {
                         kickers,
                         shotPlanner,
                         () -> cipher,
-                        0.18,
-                        0.12,
+                        0.04,
+                        0.01,
                         false,
                         true,
+                        telemetry
+                ));
+
+        driver.getGamepadButton(GamepadKeys.Button.RIGHT_BUMPER)
+                .whenPressed(new AutoSortAndExecute(
+                        czd,
+                        kickers,
+                        shotPlanner,
+                        () -> cipher,
+                        0.12,
+                        0.12,
+                        false,
+                        false,
                         telemetry
                 ));
 

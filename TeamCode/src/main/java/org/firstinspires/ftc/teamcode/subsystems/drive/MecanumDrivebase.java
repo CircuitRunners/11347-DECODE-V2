@@ -2,18 +2,13 @@ package org.firstinspires.ftc.teamcode.subsystems.drive;
 
 import com.arcrobotics.ftclib.command.SubsystemBase;
 import com.pedropathing.follower.Follower;
-import com.pedropathing.follower.FollowerConstants;
 import com.pedropathing.geometry.Pose;
 import com.pedropathing.math.Vector;
-import com.qualcomm.hardware.gobilda.GoBildaPinpointDriver;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
-import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
-import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
-import org.firstinspires.ftc.robotcore.external.navigation.Pose2D;
 import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
 
 
@@ -40,10 +35,10 @@ public class MecanumDrivebase extends SubsystemBase {
         this.isRed = isRed;
         this.isAuto = isAuto;
 
-        if (!isAuto && !isRed) {
-            setStartingPoseBlue();
-        } else if (!isAuto) {
+        if (!isAuto && isRed) {
             setStartingPoseRed();
+        } else if (!isAuto) {
+            setStartingPoseBlue();
         }
 
         DcMotorEx[] motors = new DcMotorEx[]{
@@ -85,7 +80,7 @@ public class MecanumDrivebase extends SubsystemBase {
 
         Pose pos = follower.getPose();
 
-        double robotAngle = pos.getHeading();
+        double robotAngle = reverseHeading ? pos.getHeading() : pos.getHeading() - Math.toRadians(180);
         double theta = Math.atan2(forward, right);
         double r = Math.hypot(forward, right);
         theta = AngleUnit.normalizeRadians(theta - robotAngle);
@@ -108,14 +103,18 @@ public class MecanumDrivebase extends SubsystemBase {
         return follower.getVelocity();
     }
 
+    public double getAngularVelocity() {
+        return follower.getAngularVelocity();
+    }
+
     public void setPose(Pose pose) {
         follower.setPose(pose);
     }
 
-    public void setStartingPoseBlue() {
+    public void setStartingPoseRed() {
         follower.setPose(new Pose(72, 72, Math.toRadians(0.0)));
     }
-    public void setStartingPoseRed() {
+    public void setStartingPoseBlue() {
         follower.setPose(new Pose(72, 72, Math.toRadians(180.0)));
     }
 }

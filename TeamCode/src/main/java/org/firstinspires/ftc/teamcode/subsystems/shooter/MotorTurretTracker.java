@@ -33,7 +33,7 @@ public class MotorTurretTracker extends SubsystemBase {
     private final DigitalChannel magneticLimitSwitch;
 
     // ===================== STATES =====================
-    private boolean enabled = false;
+    public static boolean enabled = false;
     private boolean homed = false;
     private final boolean isRed;
 
@@ -45,7 +45,7 @@ public class MotorTurretTracker extends SubsystemBase {
     // Red: lower/home side
     // Blue: upper/home side
     public static int LOWER_LIMIT = -200;
-    public static int UPPER_LIMIT = 12200;
+    public static int UPPER_LIMIT = 11300;
 
     // These are turret angles measured FROM THE HOME POSITION for each alliance.
     // Keep them positive. Tick sign is handled separately.
@@ -61,8 +61,8 @@ public class MotorTurretTracker extends SubsystemBase {
     //
     // If at BLUE startup the turret home magnet points robot-relative +45 deg,
     // then BLUE_ZERO_REFERENCE_DEG should be +45.
-    public static double RED_ZERO_REFERENCE_DEG = -135.0;
-    public static double BLUE_ZERO_REFERENCE_DEG = 45.0;
+    public static double RED_ZERO_REFERENCE_DEG = 49.0;
+    public static double BLUE_ZERO_REFERENCE_DEG = 47.0;
 
     // Fine trim after reference conversion
     public static double TURRET_TRIM_DEG = 0.0;
@@ -245,10 +245,14 @@ public class MotorTurretTracker extends SubsystemBase {
     private double robotRelativeToHomeFrameDeg(double robotRelativeDeg) {
         double zeroRef = getAllianceZeroReferenceDeg();
 
-        double homeFrameDeg = robotRelativeDeg - zeroRef;
-        homeFrameDeg = wrap0to360(homeFrameDeg);
+        double homeFrameDeg;
+        if (isRed) {
+            homeFrameDeg = robotRelativeDeg - zeroRef;
+        } else {
+            homeFrameDeg = zeroRef - robotRelativeDeg;
+        }
 
-        // choose the representation closest to the allowed window
+        homeFrameDeg = wrap0to360(homeFrameDeg);
         homeFrameDeg = chooseClosestToWindow(homeFrameDeg, TURRET_WINDOW_MIN_DEG, TURRET_WINDOW_MAX_DEG);
 
         return clamp(homeFrameDeg, TURRET_WINDOW_MIN_DEG, TURRET_WINDOW_MAX_DEG);
