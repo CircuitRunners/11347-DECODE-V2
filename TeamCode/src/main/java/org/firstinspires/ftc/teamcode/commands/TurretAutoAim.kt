@@ -2,11 +2,14 @@ package org.firstinspires.ftc.teamcode.commands
 
 import com.arcrobotics.ftclib.command.CommandBase
 import com.pedropathing.geometry.Pose
+import com.qualcomm.robotcore.util.Range
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit
 import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit
 import org.firstinspires.ftc.robotcore.external.navigation.Pose2D
 import org.firstinspires.ftc.teamcode.subsystems.drive.MecanumDrivebase
 import org.firstinspires.ftc.teamcode.subsystems.shooter.MotorTurretTracker
+import kotlin.math.abs
+import kotlin.math.min
 
 class TurretAutoAim(
     private val drive: MecanumDrivebase,
@@ -28,13 +31,20 @@ class TurretAutoAim(
         val x = pose.x
         val y = pose.y
         val h = pose.heading
+        val a = drive.angularVelocity
 
         val turretPose = Pose2D(
             DistanceUnit.INCH,
             x,
             y,
             AngleUnit.RADIANS,
-            h
+            (if (abs(a) > 0.5 && (abs(a) < 5)) {
+                h + (a * 0.18) //0.1 - 0.2
+            } else if (abs(a) >= 5) {
+                h + (a * 0.15)
+            } else {
+                h
+            })
         )
 
         var gx = turretTargetPose.x

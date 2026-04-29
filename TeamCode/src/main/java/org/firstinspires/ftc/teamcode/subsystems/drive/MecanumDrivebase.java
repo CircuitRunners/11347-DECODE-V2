@@ -18,6 +18,7 @@ public class MecanumDrivebase extends SubsystemBase {
     public DcMotorEx backLeftMotor;
     public DcMotorEx backRightMotor;
     private Follower follower;
+    private static Pose autoPose = null;
     private boolean isRed = false;
     private boolean isAuto = false;
 
@@ -35,10 +36,8 @@ public class MecanumDrivebase extends SubsystemBase {
         this.isRed = isRed;
         this.isAuto = isAuto;
 
-        if (!isAuto && isRed) {
-            setStartingPoseRed();
-        } else if (!isAuto) {
-            setStartingPoseBlue();
+        if (!isAuto) {
+            setPoseFromAuto();
         }
 
         DcMotorEx[] motors = new DcMotorEx[]{
@@ -109,6 +108,22 @@ public class MecanumDrivebase extends SubsystemBase {
 
     public void setPose(Pose pose) {
         follower.setPose(pose);
+    }
+
+    public static void storeAutoPose(Pose pose) {
+        MecanumDrivebase.autoPose = pose;
+    }
+
+    public void setPoseFromAuto() {
+        if ((autoPose != null)) {
+            follower.setPose(autoPose);
+        } else {
+            if ((isRed)) {
+                setStartingPoseRed();
+            } else {
+                setStartingPoseBlue();
+            }
+        }
     }
 
     public void setStartingPoseRed() {

@@ -69,10 +69,10 @@ public class StaticShooter extends SubsystemBase {
 
         shooter2 = hardwareMap.get(DcMotorEx.class, "shooter2");
 
+        shooter2.setDirection(DcMotorSimple.Direction.REVERSE);
         shooter2.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
         shooter2.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
         shooter2.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-        shooter2.setDirection(DcMotorSimple.Direction.REVERSE);
         shooter2.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
 
         // Configs defaults

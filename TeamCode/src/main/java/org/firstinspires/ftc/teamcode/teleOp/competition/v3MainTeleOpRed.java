@@ -17,6 +17,8 @@ import org.firstinspires.ftc.teamcode.commands.IntakeCommand;
 import org.firstinspires.ftc.teamcode.commands.ShotOrderPlanner;
 import org.firstinspires.ftc.teamcode.commands.TurretAutoAim;
 import org.firstinspires.ftc.teamcode.subsystems.drive.MecanumDrivebase;
+import org.firstinspires.ftc.teamcode.subsystems.drive.tiltClimb;
+import org.firstinspires.ftc.teamcode.subsystems.intake.IntakePivot;
 import org.firstinspires.ftc.teamcode.subsystems.intake.IntakeSubsystem;
 import org.firstinspires.ftc.teamcode.subsystems.shooter.HoodSubsystem;
 import org.firstinspires.ftc.teamcode.subsystems.shooter.MotorTurretTracker;
@@ -36,6 +38,8 @@ public class v3MainTeleOpRed extends CommandOpMode {
     private StaticShooter shooter;
     private Kickers kickers;
     private MotorTurretTracker turret;
+    private tiltClimb climb;
+    private IntakePivot pivot;
 
     // ========== SOFTWARE ==========
     private ColourZoneDetection czd;
@@ -73,6 +77,9 @@ public class v3MainTeleOpRed extends CommandOpMode {
 
         kickers = new Kickers(hardwareMap);
 
+        climb = new tiltClimb(hardwareMap);
+        pivot = new IntakePivot(hardwareMap);
+
         // ========== SOFTWARE ==========
         driver = new GamepadEx(gamepad1);
         czd = new ColourZoneDetection(hardwareMap,
@@ -81,7 +88,7 @@ public class v3MainTeleOpRed extends CommandOpMode {
 
         // ========== COMMANDS ==========
         drive.setDefaultCommand(new DriveCommand(drive, driver, isRed));
-        intake.setDefaultCommand(new IntakeCommand(intake, driver));
+        intake.setDefaultCommand(new IntakeCommand(intake, driver, pivot));
 
         driver.getGamepadButton(GamepadKeys.Button.B)
                 .whenPressed(new InstantCommand(()-> {
@@ -130,7 +137,7 @@ public class v3MainTeleOpRed extends CommandOpMode {
         );
 
         // ========== SET START POSE ==========
-
+        drive.setPoseFromAuto();
 
         // ========== TELEMETRY ==========
         telemetry.addLine("Init Done");

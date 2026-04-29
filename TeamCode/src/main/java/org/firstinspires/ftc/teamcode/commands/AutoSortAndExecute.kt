@@ -25,6 +25,9 @@ class AutoSortAndExecute(
 
     private var cachedPlan: List<ShotOrderPlanner.PlannedShot> = emptyList()
 
+    @Volatile
+    private var finished = false
+
     init {
         val autoSort = RobotAutoSortCommand(
             czd = czd,
@@ -45,5 +48,14 @@ class AutoSortAndExecute(
                 resetTimeS = resetTimeS
             )
         )
+    }
+
+    override fun end(interrupted: Boolean) {
+        super.end(interrupted)
+        finished = true
+    }
+
+    fun isDoneRunning(): Boolean {
+        return finished
     }
 }

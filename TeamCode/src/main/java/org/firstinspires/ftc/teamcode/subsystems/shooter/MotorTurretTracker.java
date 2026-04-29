@@ -27,6 +27,10 @@ public class MotorTurretTracker extends SubsystemBase {
     public static int staticFrictionDeadbandTicks = 20;
 
     private int target = 0;
+    private static boolean persistedValid = false;
+    private static boolean persistedHomed = false;
+    private static int persistedTargetTicks = 0;
+    private static int persistedEncoderTicks = 0;
 
     // ===================== DEVICES =====================
     private final DcMotorEx turret;
@@ -87,21 +91,51 @@ public class MotorTurretTracker extends SubsystemBase {
     private double lastTurretHomeFrameDegMeasured = 0.0;
     private double lastPower = 0.0;
 
+//    public MotorTurretTracker(HardwareMap hardwareMap, boolean isRed) {
+//        this.isRed = isRed;
+//
+//        turret = hardwareMap.get(DcMotorEx.class, "turret");
+//        magneticLimitSwitch = hardwareMap.get(DigitalChannel.class, "magLimit");
+//
+//        turret.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+//        turret.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+//        turret.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+//
+//        magneticLimitSwitch.setMode(DigitalChannel.Mode.INPUT);
+//
+//        controller = new PIDController(p, i, d);
+//        target = 0;
+//        homed = false;
+//    }
     public MotorTurretTracker(HardwareMap hardwareMap, boolean isRed) {
         this.isRed = isRed;
 
         turret = hardwareMap.get(DcMotorEx.class, "turret");
         magneticLimitSwitch = hardwareMap.get(DigitalChannel.class, "magLimit");
 
-        turret.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
         turret.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
         turret.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
 
         magneticLimitSwitch.setMode(DigitalChannel.Mode.INPUT);
 
         controller = new PIDController(p, i, d);
-        target = 0;
-        homed = false;
+
+        if (isAtLimit()) {
+            turret.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+            turret.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+            target = 0;
+            homed = true;
+            persistedValid = true;
+            persistedHomed = true;
+            persistedTargetTicks = 0;
+            persistedEncoderTicks = 0;
+        } else if (persistedValid && persistedHomed) {
+            homed = true;
+            target = persistedTargetTicks;
+        } else {
+            target = 0;
+            homed = false;
+        }
     }
 
     public void setEnabled(boolean enabled) {
@@ -183,6 +217,12 @@ public class MotorTurretTracker extends SubsystemBase {
         turret.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
         turret.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
         target = 0;
+        homed = true;
+
+        persistedValid = true;
+        persistedHomed = true;
+        persistedTargetTicks = 0;
+        persistedEncoderTicks = 0;
     }
 
     public double getCurrent() {
@@ -366,5 +406,19 @@ public class MotorTurretTracker extends SubsystemBase {
 
     private static double clamp(double v, double lo, double hi) {
         return Math.max(lo, Math.min(hi, v));
+    }
+
+    public void persistState() {
+        persistedValid = true;
+        persistedHomed = homed;
+        persistedTargetTicks = target;
+        persistedEncoderTicks = turret.getCurrentPosition();
+    }
+
+    public static void clearPersistedState() {
+        persistedValid = false;
+        persistedHomed = false;
+        persistedTargetTicks = 0;
+        persistedEncoderTicks = 0;
     }
 }

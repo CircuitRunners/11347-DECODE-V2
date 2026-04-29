@@ -3,13 +3,16 @@ package org.firstinspires.ftc.teamcode.commands
 import com.arcrobotics.ftclib.command.CommandBase
 import com.arcrobotics.ftclib.gamepad.GamepadEx
 import com.arcrobotics.ftclib.gamepad.GamepadKeys
+import org.firstinspires.ftc.teamcode.subsystems.intake.IntakePivot
 import org.firstinspires.ftc.teamcode.subsystems.intake.IntakeSubsystem
 import org.firstinspires.ftc.teamcode.subsystems.transfer.ColourZoneDetection
 import org.firstinspires.ftc.teamcode.support.GobildaRGBIndicatorHelper
+import kotlin.math.abs
 
 class IntakeCommand(
     private val inSubsystem : IntakeSubsystem,
-    private val driver : GamepadEx
+    private val driver : GamepadEx,
+    private val pivot : IntakePivot
 ) : CommandBase() {
     private var wasIntaking = false
 
@@ -24,24 +27,13 @@ class IntakeCommand(
 
         if (isIntaking) {
             inSubsystem.intake(leftTrigger - rightTrigger)
+            if (abs(leftTrigger) > abs(rightTrigger)) {
+                pivot.setPivotIntaking()
+            } else {
+                pivot.setPivotMax()
+            }
         } else {
             inSubsystem.stop()
-
-//            if (wasIntaking) {
-//                czd.update()
-//                val snapshot = czd.rawSnapshot
-//                val ballCount =
-//                    (if (snapshot.z1.hasBall) 1 else 0) +
-//                    (if (snapshot.z2.hasBall) 1 else 0) +
-//                    (if (snapshot.z3.hasBall) 1 else 0)
-//
-//                when (ballCount) {
-//                    1 -> rgb.setColour(GobildaRGBIndicatorHelper.Colour.YELLOW)
-//                    2 -> rgb.setColour(GobildaRGBIndicatorHelper.Colour.GREEN)
-//                    3 -> rgb.setColour(GobildaRGBIndicatorHelper.Colour.VIOLET)
-//                    else -> rgb.setColour(GobildaRGBIndicatorHelper.Colour.RED)
-//                }
-//            }
         }
 
         wasIntaking = isIntaking
