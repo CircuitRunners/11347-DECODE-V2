@@ -127,9 +127,9 @@ public class MecanumDrivebase extends SubsystemBase {
     }
 
     public void setStartingPoseRed() {
-        follower.setPose(new Pose(72, 72, Math.toRadians(0.0)));
+        follower.setPose(new Pose(87, 9, Math.toRadians(90.0)));
     }
     public void setStartingPoseBlue() {
-        follower.setPose(new Pose(72, 72, Math.toRadians(180.0)));
+        follower.setPose(new Pose(57, 9, Math.toRadians(90.0)));
     }
 }

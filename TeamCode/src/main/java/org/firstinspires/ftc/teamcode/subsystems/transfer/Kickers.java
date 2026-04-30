@@ -10,8 +10,8 @@ import org.firstinspires.ftc.teamcode.support.RunAction;
 @Config
 public class Kickers extends SubsystemBase {
     public enum KickerState {
-        UP(0.5, 0.5, 0.5), //0.21, 0.23, 0.21)
-        DOWN(0.15, 0.18, 0.16); //0.54, 0.51, 0.52)
+        UP(0.5, 0.59, 0.5), //0.21, 0.23, 0.21)
+        DOWN(0.15, 0.17, 0.16); //0.54, 0.51, 0.52)
 
         public final double kickerOne, kickerTwo, kickerThree;
         KickerState(double kickerOne, double kickerTwo, double kickerThree) {
@@ -33,7 +33,9 @@ public class Kickers extends SubsystemBase {
         }
     }
 
-    private Servo kickerServo1, kickerServo2, kickerServo3;
+    private final Servo kickerServo1;
+    private final Servo kickerServo2;
+    private final Servo kickerServo3;
     public RunAction kickZoneOne, kickZoneTwo, kickZoneThree,
                     resetZoneOne, resetZoneTwo, resetZoneThree;
 

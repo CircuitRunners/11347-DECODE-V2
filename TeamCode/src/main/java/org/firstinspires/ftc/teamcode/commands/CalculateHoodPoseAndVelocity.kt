@@ -1,5 +1,6 @@
 package org.firstinspires.ftc.teamcode.commands
 
+import com.acmerobotics.dashboard.config.Config
 import com.arcrobotics.ftclib.command.CommandBase
 import com.pedropathing.geometry.Pose
 import com.pedropathing.math.MathFunctions
@@ -18,19 +19,20 @@ import kotlin.math.pow
 import kotlin.math.sqrt
 import kotlin.math.tan
 
+@Config
 class CalculateHoodPoseAndVelocity(
     private val drive: MecanumDrivebase,
     private val shooter : StaticShooter,
     private val hood : HoodSubsystem,
     private val goalPosRed: Pose,
-    private val passThroughRadius: Double = 5.0,
-    private val scoreHeight: Double = 20.0,
-    private val scoreAngleRad: Double = Math.toRadians(-30.0),
-    private val minHoodAngle: Double = Math.toRadians(0.0),
-    private val maxHoodAngle: Double = Math.toRadians(67.0),
+    private val passThroughRadius: Double, // 5
+    private val scoreHeight: Double, // 20
+    private val scoreAngleRad: Double, // -30
+    private val minHoodAngle: Double, // 0.0
+    private val maxHoodAngle: Double,// 67
 ) : CommandBase() {
     private val timer = ElapsedTime()
-    private val updatePeriodSec = 1.0
+    private val updatePeriodSec = 0.02
     var flywheelSpeed = 0.0
     var hoodAngle = 0.0
     var maxHoodTicks = 0.96 //0.9
@@ -54,9 +56,9 @@ class CalculateHoodPoseAndVelocity(
         val wheelRPM = (flywheelSpeed * 60.0) / (Math.PI * (4.85 / 4.0))
         val motorRPM = wheelRPM * gearRatio
 
-        val hoodPos = (maxHoodTicks - Range.scale(hoodAngle, minHoodAngle, maxHoodAngle, 0.05, 0.8))
+        val hoodPos = (maxHoodTicks - Range.scale(hoodAngle, minHoodAngle, maxHoodAngle, 0.0, 0.8)) // lower min value?
 
-        shooter.targetRPM = motorRPM + 200
+        shooter.targetRPM = motorRPM
         hood.aimScoring(hoodPos)
     }
 
