@@ -113,14 +113,13 @@ public class MotorTurretTracker extends SubsystemBase {
         turret = hardwareMap.get(DcMotorEx.class, "turret");
         magneticLimitSwitch = hardwareMap.get(DigitalChannel.class, "magLimit");
 
-        turret.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
-        turret.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
-
         magneticLimitSwitch.setMode(DigitalChannel.Mode.INPUT);
 
         controller = new PIDController(p, i, d);
 
         if (isAtLimit()) {
+            turret.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+            turret.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
             turret.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
             turret.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
             target = 0;
@@ -410,7 +409,7 @@ public class MotorTurretTracker extends SubsystemBase {
 
     public void persistState() {
         persistedValid = true;
-        persistedHomed = homed;
+        persistedHomed = true;
         persistedTargetTicks = target;
         persistedEncoderTicks = turret.getCurrentPosition();
     }

@@ -52,6 +52,7 @@ public class BlueClose3Plus6GateAuto extends CommandOpMode {
     private AutoSortAndExecute shootCommand = null;
     private boolean shootSequenceFinished = false;
     private ElapsedTime pathTimer;
+    private ElapsedTime EndCode;
 
     // ===================== SHOOT SOLVER CONFIG =====================
     public static double PASS_THROUGH_RADIUS_IN = 0.5;
@@ -76,6 +77,7 @@ public class BlueClose3Plus6GateAuto extends CommandOpMode {
         GATE,
         GATE_TO_SHOOTING,
         SHOOT_GATED_BALLS,
+        DRIVE_LAST,
         DONE
     }
     private AutoState autoState = AutoState.PRELOAD_AIM_AND_SPINUP;
@@ -84,7 +86,7 @@ public class BlueClose3Plus6GateAuto extends CommandOpMode {
     private int gates = 0;
 
     // ===================== PATHS =====================
-    private PathChain firstScoringPath, middleLineIntake, gateIntakePath, gateToScoring;
+    private PathChain firstScoringPath, middleLineIntake, gateIntakePath, gateToScoring, lastGate;
     private void buildPaths() {
         firstScoringPath = follower.pathBuilder()
                 // Start to Shoot 1 pose
@@ -144,6 +146,18 @@ public class BlueClose3Plus6GateAuto extends CommandOpMode {
                                 new Pose(13, 58),
                                 new Pose(46, 70),
                                 new Pose(54, 90)
+                        )
+                )
+                .setLinearHeadingInterpolation(Math.toRadians(155), Math.toRadians(225))
+                .build();
+
+        lastGate = follower.pathBuilder()
+                // gate to shoot pose
+                .addPath(
+                        new BezierCurve(
+                                new Pose(13, 58),
+                                new Pose(46, 70),
+                                new Pose(56, 112)
                         )
                 )
                 .setLinearHeadingInterpolation(Math.toRadians(155), Math.toRadians(225))
@@ -236,6 +250,7 @@ public class BlueClose3Plus6GateAuto extends CommandOpMode {
         buildPaths();
 
         pathTimer = new ElapsedTime();
+        EndCode = new ElapsedTime();
 
         drive = new MecanumDrivebase(hardwareMap, false, true, follower);
 
@@ -259,6 +274,10 @@ public class BlueClose3Plus6GateAuto extends CommandOpMode {
             kickers.resetZoneTwo();
             kickers.resetZoneThree();
             setAutoState(AutoState.START_FOLLOWING);
+        }
+
+        if (EndCode.seconds() > 28) {
+            setAutoState(AutoState.DONE);
         }
 
         updateTurretAim();
@@ -310,7 +329,7 @@ public class BlueClose3Plus6GateAuto extends CommandOpMode {
                 NOT_AT_GATE = true;
                 if (shootSequenceFinished && gates < 2) {
                     setAutoState(AutoState.DRIVE_TO_GATE);
-                } else if (shootSequenceFinished && gates > 2) {
+                } else if (shootSequenceFinished && gates > 3) {
                     setAutoState(AutoState.DONE);
                 }
                 break;
@@ -327,10 +346,20 @@ public class BlueClose3Plus6GateAuto extends CommandOpMode {
                         pathTimer.reset();
                         NOT_AT_GATE = false;
                     }
+                    if (gates > 2) {
+                        setAutoState(AutoState.DRIVE_LAST);
+                    }
                     if (pathTimer.seconds() > 0.5) {
                         setAutoState(AutoState.GATE_TO_SHOOTING);
                     }
                 }
+                break;
+
+            case DRIVE_LAST:
+                intake.intake(-1);
+                gates++;
+                follower.followPath(lastGate, false);
+                setAutoState(AutoState.SHOOT_GATED_BALLS);
                 break;
 
             case GATE_TO_SHOOTING:
@@ -351,6 +380,7 @@ public class BlueClose3Plus6GateAuto extends CommandOpMode {
             case DONE:
                 intake.stop();
                 shooter.setTargetRPM(0);
+                turret.persistState();
                 MecanumDrivebase.storeAutoPose(follower.getPose());
                 follower.breakFollowing();
                 break;

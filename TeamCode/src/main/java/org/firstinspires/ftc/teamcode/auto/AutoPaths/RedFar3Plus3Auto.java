@@ -255,6 +255,7 @@ public class RedFar3Plus3Auto extends CommandOpMode {
             case DONE:
                 intake.stop();
                 shooter.setTargetRPM(0);
+                turret.persistState();
                 MecanumDrivebase.storeAutoPose(follower.getPose());
                 follower.breakFollowing();
                 break;

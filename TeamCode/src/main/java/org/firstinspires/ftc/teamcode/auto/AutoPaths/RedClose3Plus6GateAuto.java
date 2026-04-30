@@ -128,10 +128,10 @@ public class RedClose3Plus6GateAuto extends CommandOpMode {
                         new BezierCurve(
                                 new Pose(90, 90),
                                 new Pose(98, 70),
-                                new Pose(131, 58)
+                                new Pose(130.3, 58.7)
                         )
                 )
-                .setLinearHeadingInterpolation(Math.toRadians(315), Math.toRadians(25))
+                .setLinearHeadingInterpolation(Math.toRadians(315), 0.540)
                 .build();
 
         gateToScoring = follower.pathBuilder()
@@ -142,7 +142,7 @@ public class RedClose3Plus6GateAuto extends CommandOpMode {
                                 new Pose(90, 90)
                         )
                 )
-                .setLinearHeadingInterpolation(Math.toRadians(25), Math.toRadians(315))
+                .setLinearHeadingInterpolation(0.540, Math.toRadians(315))
                 .build();
     }
 
@@ -347,6 +347,7 @@ public class RedClose3Plus6GateAuto extends CommandOpMode {
             case DONE:
                 intake.stop();
                 shooter.setTargetRPM(0);
+                turret.persistState();
                 MecanumDrivebase.storeAutoPose(follower.getPose());
                 follower.breakFollowing();
                 break;

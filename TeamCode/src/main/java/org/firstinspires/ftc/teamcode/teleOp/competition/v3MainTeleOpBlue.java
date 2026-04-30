@@ -95,8 +95,11 @@ public class v3MainTeleOpBlue extends CommandOpMode {
 
         driver.getGamepadButton(GamepadKeys.Button.B)
                 .whenPressed(new InstantCommand(()-> {
-                    drive.setPose(new Pose(drive.getPose().getX(), drive.getPose().getY(), Math.toRadians(0.0)));
+                    drive.setPose(new Pose(drive.getPose().getX(), drive.getPose().getY(), Math.toRadians(180.0)));
                 }));
+
+        driver.getGamepadButton(GamepadKeys.Button.X)
+                        .whenPressed(new InstantCommand(() -> drive.setPose(new Pose(72, 72, Math.toRadians(180)))));
 
         driver.getGamepadButton(GamepadKeys.Button.LEFT_BUMPER)
                 .whenPressed(new AutoSortAndExecute(
@@ -178,6 +181,7 @@ public class v3MainTeleOpBlue extends CommandOpMode {
         telemetry.addData("loop avg (ms)", "%.3f", avgLoopMs);
         telemetry.addData("loop max (ms)", "%.3f", maxLoopMs);
         telemetry.addData("Turret Target", turret.getTargetTicks());
+        telemetry.addData("Turret Homed", turret.isHomed());
         telemetry.addData("Turret Last Angle (deg)", turret.getLastTargetFieldDeg());
         telemetry.addData("Turret Field Angle (deg)", turret.getLastRobotFieldHeadingDeg());
         telemetry.addData("Current Anglular Velocity", drive.getAngularVelocity());
