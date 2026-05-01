@@ -56,10 +56,10 @@ public class BlueClose3Plus6GateAuto extends CommandOpMode {
 
     // ===================== SHOOT SOLVER CONFIG =====================
     public static double PASS_THROUGH_RADIUS_IN = 0.5;
-    public static double SCORE_HEIGHT_IN = 20.0;
-    public static double SCORE_ANGLE_RAD = Math.toRadians(-30.0);
-    public static double HOOD_MAX_ANGLE_RAD = Math.toRadians(67.0);
-    public static double HOOD_MIN_ANGLE_RAD = Math.toRadians(0.0);
+    public static double SCORE_ANGLE_RAD = Math.toRadians(-30);
+    public static double HOOD_MAX_ANGLE_RAD = Math.toRadians(67);
+    public static double HOOD_MIN_ANGLE_RAD = Math.toRadians(0);
+    public static double SCORE_HEIGHT_IN = 29;
     public static double MAX_HOOD_TICKS = 0.96;
 
     // ===================== INTAKE =====================
@@ -133,7 +133,7 @@ public class BlueClose3Plus6GateAuto extends CommandOpMode {
                         new BezierCurve(
                                 new Pose(54, 90),
                                 new Pose(46, 70),
-                                new Pose(13, 58)
+                                new Pose(13, 59)
                         )
                 )
                 .setLinearHeadingInterpolation(Math.toRadians(225), Math.toRadians(155))
@@ -143,7 +143,7 @@ public class BlueClose3Plus6GateAuto extends CommandOpMode {
                 // gate to shoot pose
                 .addPath(
                         new BezierCurve(
-                                new Pose(13, 58),
+                                new Pose(13, 59),
                                 new Pose(46, 70),
                                 new Pose(54, 90)
                         )
@@ -214,11 +214,11 @@ public class BlueClose3Plus6GateAuto extends CommandOpMode {
                 hoodAngle,
                 HOOD_MIN_ANGLE_RAD,
                 HOOD_MAX_ANGLE_RAD,
-                0.05,
-                0.8
+                0.0,
+                0.9
         ));
 
-        shooter.setTargetRPM(motorRPM + 200);
+        shooter.setTargetRPM(motorRPM);
         hood.aimScoring(hoodPos);
     }
 
@@ -249,6 +249,8 @@ public class BlueClose3Plus6GateAuto extends CommandOpMode {
         follower.setStartingPose(startPose);
         buildPaths();
 
+        gates = 0;
+
         pathTimer = new ElapsedTime();
         EndCode = new ElapsedTime();
 
@@ -268,6 +270,7 @@ public class BlueClose3Plus6GateAuto extends CommandOpMode {
 
         if (!startedOnce) {
             pathTimer.reset();
+            EndCode.reset();
             startedOnce = true;
             turret.setEnabled(true);
             kickers.resetZoneOne();
@@ -276,7 +279,7 @@ public class BlueClose3Plus6GateAuto extends CommandOpMode {
             setAutoState(AutoState.START_FOLLOWING);
         }
 
-        if (EndCode.seconds() > 28) {
+        if (EndCode.seconds() > 29) {
             setAutoState(AutoState.DONE);
         }
 
@@ -327,10 +330,12 @@ public class BlueClose3Plus6GateAuto extends CommandOpMode {
             case SECOND_SHOOTING:
                 intake.stop();
                 NOT_AT_GATE = true;
-                if (shootSequenceFinished && gates < 2) {
-                    setAutoState(AutoState.DRIVE_TO_GATE);
-                } else if (shootSequenceFinished && gates > 3) {
-                    setAutoState(AutoState.DONE);
+                if (shootSequenceFinished) {
+                    if (gates < 2) {
+                        setAutoState(AutoState.DRIVE_TO_GATE);
+                    } else {
+                        setAutoState(AutoState.DONE);
+                    }
                 }
                 break;
 
@@ -346,31 +351,29 @@ public class BlueClose3Plus6GateAuto extends CommandOpMode {
                         pathTimer.reset();
                         NOT_AT_GATE = false;
                     }
-                    if (gates > 2) {
+                    if (gates >= 1) {
                         setAutoState(AutoState.DRIVE_LAST);
                     }
-                    if (pathTimer.seconds() > 0.5) {
+                    if (pathTimer.seconds() > 1) {
                         setAutoState(AutoState.GATE_TO_SHOOTING);
                     }
                 }
                 break;
 
             case DRIVE_LAST:
-                intake.intake(-1);
                 gates++;
                 follower.followPath(lastGate, false);
                 setAutoState(AutoState.SHOOT_GATED_BALLS);
                 break;
 
             case GATE_TO_SHOOTING:
-                intake.intake(-1);
                 gates++;
                 follower.followPath(gateToScoring, false);
                 setAutoState(AutoState.SHOOT_GATED_BALLS);
                 break;
 
             case SHOOT_GATED_BALLS:
-                intake.stop();
+                intake.intake(-INTAKE_POWER);
                 if (!follower.isBusy() && shooter.isAtTargetThreshold()) {
                     runShootCommand();
                     setAutoState(AutoState.SECOND_SHOOTING);
@@ -403,6 +406,7 @@ public class BlueClose3Plus6GateAuto extends CommandOpMode {
         telemetry.addData("Turret Measured Deg", turret.getLastTurretHomeFrameDegMeasured());
         telemetry.addData("Shooter RPM", shooter.getShooterVelocity());
         telemetry.addData("Shooter Target RPM", shooter.getTargetRPM());
+        telemetry.addData("Gates", gates);
         telemetry.update();
     }
 

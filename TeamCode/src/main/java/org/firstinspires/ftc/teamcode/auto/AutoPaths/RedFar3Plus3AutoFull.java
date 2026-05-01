@@ -8,6 +8,7 @@ import com.pedropathing.geometry.BezierLine;
 import com.pedropathing.geometry.Pose;
 import com.pedropathing.paths.PathChain;
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
+import com.qualcomm.robotcore.util.ElapsedTime;
 import com.qualcomm.robotcore.util.Range;
 
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
@@ -26,8 +27,8 @@ import org.firstinspires.ftc.teamcode.subsystems.transfer.ColourZoneDetection;
 import org.firstinspires.ftc.teamcode.subsystems.transfer.Kickers;
 
 @Config
-@Autonomous(name = "Red Side Auto Far 3+3", group = "Red Auto", preselectTeleOp = "v3MainTeleOpRed")
-public class RedFar3Plus3Auto extends CommandOpMode {
+@Autonomous(name = "Red Side Auto Far FULL", group = "Red Auto", preselectTeleOp = "v3MainTeleOpRed")
+public class RedFar3Plus3AutoFull extends CommandOpMode {
 
     // ===================== ALLIANCE / FIELD =====================
     private final boolean isRed = true;
@@ -44,7 +45,7 @@ public class RedFar3Plus3Auto extends CommandOpMode {
     private MecanumDrivebase drive;
 
     // ===================== PATHS =====================
-    private PathChain collectAndReturnPath;
+    private PathChain collectAndReturnPathLine, collectCorner, cornerToScoring, park;
 
     // ========== SOFTWARE ==========
     private ColourZoneDetection czd;
@@ -52,10 +53,12 @@ public class RedFar3Plus3Auto extends CommandOpMode {
     private ShotOrderPlanner.Cipher cipher = ShotOrderPlanner.Cipher.PPG;
     private AutoSortAndExecute shootCommand = null;
     private boolean shootSequenceFinished = false;
+    private ElapsedTime pathTimer;
+    private ElapsedTime EndCode;
 
     // ===================== SHOOT SOLVER CONFIG =====================
     public static double PASS_THROUGH_RADIUS_IN = 0.5;
-    public static double SCORE_HEIGHT_IN = 20.0;
+    public static double SCORE_HEIGHT_IN = 31;
     public static double SCORE_ANGLE_RAD = Math.toRadians(-30.0);
     public static double HOOD_MAX_ANGLE_RAD = Math.toRadians(67.0);
     public static double HOOD_MIN_ANGLE_RAD = Math.toRadians(0.0);
@@ -71,14 +74,21 @@ public class RedFar3Plus3Auto extends CommandOpMode {
         DRIVE_COLLECT_AND_RETURN,
         SECOND_AIM_AND_SPINUP,
         SECOND_SHOOTING,
+        DRIVE_TO_CORNER,
+        CORNER_TO_SHOOT,
+        SHOOT_CORNER_BALLS,
+        LOOP_CORNER,
+        CHECK_IF_DONE,
+        PARK,
         DONE
     }
 
     private AutoState autoState = AutoState.PRELOAD_AIM_AND_SPINUP;
     private boolean startedOnce = false;
+    private double cornerCount = 0;
 
     private void buildPaths() {
-        collectAndReturnPath = follower.pathBuilder()
+        collectAndReturnPathLine = follower.pathBuilder()
                 .addPath(
                         new BezierCurve(
                                 new Pose(87, 9),
@@ -90,6 +100,50 @@ public class RedFar3Plus3Auto extends CommandOpMode {
                 .addPath(
                         new BezierLine(
                                 new Pose(128, 35.5),
+                                new Pose(94, 15)
+                        )
+                )
+                .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(70))
+                .build();
+
+        park = follower.pathBuilder()
+                .addPath(
+                        new BezierLine(
+                                new Pose(94, 15),
+                                new Pose(100, 20)
+                        )
+                )
+                .setLinearHeadingInterpolation(Math.toRadians(70), Math.toRadians(0))
+                .build();
+
+        collectCorner = follower.pathBuilder()
+                .addPath(
+                        new BezierLine(
+                                new Pose(94, 15),
+                                new Pose(132, 9.3)
+                        )
+                )
+                .setLinearHeadingInterpolation(Math.toRadians(70), Math.toRadians(0))
+                .addPath(
+                        new BezierLine(
+                                new Pose(132, 9.3),
+                                new Pose(128, 9.3)
+                        )
+                )
+                .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(0))
+                .addPath(
+                        new BezierLine(
+                                new Pose(128, 9.3),
+                                new Pose(132, 9.7)
+                        )
+                )
+                .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(0))
+                .build();
+
+        cornerToScoring = follower.pathBuilder()
+                .addPath(
+                        new BezierLine(
+                                new Pose(132, 9.7),
                                 new Pose(94, 15)
                         )
                 )
@@ -180,6 +234,8 @@ public class RedFar3Plus3Auto extends CommandOpMode {
         follower.setStartingPose(startPose);
         buildPaths();
 
+        EndCode = new ElapsedTime();
+
         drive = new MecanumDrivebase(hardwareMap, true, true, follower);
 
         register(shooter, kickers, hood, turret);
@@ -196,11 +252,17 @@ public class RedFar3Plus3Auto extends CommandOpMode {
 
         if (!startedOnce) {
             startedOnce = true;
+            EndCode.reset();
             turret.setEnabled(true);
             kickers.resetZoneOne();
             kickers.resetZoneTwo();
             kickers.resetZoneThree();
             setAutoState(AutoState.PRELOAD_AIM_AND_SPINUP);
+        }
+
+        // TODO: Fix
+        if (EndCode.seconds() > 28) {
+            setAutoState(AutoState.DONE);
         }
 
         updateTurretAim();
@@ -219,7 +281,7 @@ public class RedFar3Plus3Auto extends CommandOpMode {
                 follower.setMaxPower(0.8);
                 intake.stop();
                 if (shootSequenceFinished) {
-                    follower.followPath(collectAndReturnPath, false);
+                    follower.followPath(collectAndReturnPathLine, false);
                     intake.intake(INTAKE_POWER);
                     setAutoState(AutoState.DRIVE_COLLECT_AND_RETURN);
                 }
@@ -248,16 +310,65 @@ public class RedFar3Plus3Auto extends CommandOpMode {
             case SECOND_SHOOTING:
                 intake.stop();
                 if (shootSequenceFinished) {
+                    setAutoState(AutoState.DRIVE_TO_CORNER);
+                }
+                break;
+
+            case DRIVE_TO_CORNER:
+                intake.intake(INTAKE_POWER);
+                follower.followPath(collectCorner, false);
+                setAutoState(AutoState.CORNER_TO_SHOOT);
+                break;
+
+            case CORNER_TO_SHOOT:
+                if (!follower.isBusy() && shooter.isAtTargetThreshold() || follower.isRobotStuck()) {
+                    intake.stop();
+                    follower.followPath(cornerToScoring, false);
+                    setAutoState(AutoState.SHOOT_CORNER_BALLS);
+                }
+                break;
+
+            case SHOOT_CORNER_BALLS:
+                if (!follower.isBusy()) {
+                    runShootCommand();
+                    cornerCount++;
+                    setAutoState(AutoState.LOOP_CORNER);
+                }
+                break;
+
+            case LOOP_CORNER:
+                if (cornerCount >= 2) {
+                    if (!follower.isBusy()) {
+                        setAutoState(AutoState.CHECK_IF_DONE);
+                    }
+                } else {
+                    if (shootSequenceFinished) {
+                        setAutoState(AutoState.DRIVE_TO_CORNER);
+                    }
+                }
+                break;
+
+            case CHECK_IF_DONE:
+                if (shootSequenceFinished) {
+                    setAutoState(AutoState.PARK);
+                }
+                break;
+
+            case PARK:
+                if (!follower.isBusy()) {
+                    follower.followPath(park, false);
                     setAutoState(AutoState.DONE);
                 }
                 break;
 
             case DONE:
-                intake.stop();
-                shooter.setTargetRPM(0);
-                turret.persistState();
-                MecanumDrivebase.storeAutoPose(follower.getPose());
-                follower.breakFollowing();
+                if (!follower.isBusy() || EndCode.seconds() > 29.5) {
+                    intake.stop();
+                    shooter.setTargetRPM(0);
+                    turret.persistState();
+                    MecanumDrivebase.storeAutoPose(follower.getPose());
+                    follower.breakFollowing();
+                }
                 break;
         }
 
@@ -278,6 +389,7 @@ public class RedFar3Plus3Auto extends CommandOpMode {
         telemetry.addData("Turret Measured Deg", turret.getLastTurretHomeFrameDegMeasured());
         telemetry.addData("Shooter RPM", shooter.getShooterVelocity());
         telemetry.addData("Shooter Target RPM", shooter.getTargetRPM());
+        telemetry.addData("Times Cornered", cornerCount);
         telemetry.update();
     }
 

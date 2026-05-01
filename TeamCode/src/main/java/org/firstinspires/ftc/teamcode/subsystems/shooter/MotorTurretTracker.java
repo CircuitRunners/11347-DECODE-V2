@@ -65,7 +65,7 @@ public class MotorTurretTracker extends SubsystemBase {
     //
     // If at BLUE startup the turret home magnet points robot-relative +45 deg,
     // then BLUE_ZERO_REFERENCE_DEG should be +45.
-    public static double RED_ZERO_REFERENCE_DEG = 49.0;
+    public static double RED_ZERO_REFERENCE_DEG = 48.0;
     public static double BLUE_ZERO_REFERENCE_DEG = 47.0;
 
     // Fine trim after reference conversion

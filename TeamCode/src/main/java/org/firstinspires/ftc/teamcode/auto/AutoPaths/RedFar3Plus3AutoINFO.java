@@ -19,7 +19,6 @@ import org.firstinspires.ftc.teamcode.commands.AutoSortAndExecute;
 import org.firstinspires.ftc.teamcode.commands.ShotOrderPlanner;
 import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
 import org.firstinspires.ftc.teamcode.subsystems.drive.MecanumDrivebase;
-import org.firstinspires.ftc.teamcode.subsystems.intake.IntakePivot;
 import org.firstinspires.ftc.teamcode.subsystems.intake.IntakeSubsystem;
 import org.firstinspires.ftc.teamcode.subsystems.shooter.HoodSubsystem;
 import org.firstinspires.ftc.teamcode.subsystems.shooter.MotorTurretTracker;
@@ -28,12 +27,13 @@ import org.firstinspires.ftc.teamcode.subsystems.transfer.ColourZoneDetection;
 import org.firstinspires.ftc.teamcode.subsystems.transfer.Kickers;
 
 @Config
-@Autonomous(name = "Red Side Auto Close 3+6 gate", group = "Red Auto", preselectTeleOp = "v3MainTeleOpRed")
-public class RedClose3Plus6GateAuto extends CommandOpMode {
+@Autonomous(name = "Red Side Auto Far INFO", group = "Red Auto", preselectTeleOp = "v3MainTeleOpRed")
+public class RedFar3Plus3AutoINFO extends CommandOpMode {
+
     // ===================== ALLIANCE / FIELD =====================
     private final boolean isRed = true;
-    private final Pose TARGET_GOAL_POSE = new Pose(150, 134);
-    private final Pose startPose = new Pose(124.5, 121.3, Math.toRadians(216.25));
+    private final Pose TARGET_GOAL_POSE = new Pose(150, 126);
+    private final Pose startPose = new Pose(87, 9, Math.toRadians(90));
 
     // ===================== HARDWARE =====================
     private IntakeSubsystem intake;
@@ -43,7 +43,9 @@ public class RedClose3Plus6GateAuto extends CommandOpMode {
     private MotorTurretTracker turret;
     private Follower follower;
     private MecanumDrivebase drive;
-    private IntakePivot pivot;
+
+    // ===================== PATHS =====================
+    private PathChain collectAndReturnPathLine, collectCorner, cornerToScoring, park;
 
     // ========== SOFTWARE ==========
     private ColourZoneDetection czd;
@@ -51,7 +53,7 @@ public class RedClose3Plus6GateAuto extends CommandOpMode {
     private ShotOrderPlanner.Cipher cipher = ShotOrderPlanner.Cipher.PPG;
     private AutoSortAndExecute shootCommand = null;
     private boolean shootSequenceFinished = false;
-    private ElapsedTime pathTimer;
+    private ElapsedTime startTimer;
     private ElapsedTime EndCode;
 
     // ===================== SHOOT SOLVER CONFIG =====================
@@ -67,83 +69,85 @@ public class RedClose3Plus6GateAuto extends CommandOpMode {
 
     // ===================== AUTO STATE =====================
     private enum AutoState {
-        START_FOLLOWING,
         PRELOAD_AIM_AND_SPINUP,
         PRELOAD_SHOOTING,
         DRIVE_COLLECT_AND_RETURN,
         SECOND_AIM_AND_SPINUP,
         SECOND_SHOOTING,
-        DRIVE_TO_GATE,
-        GATE,
-        GATE_TO_SHOOTING,
-        SHOOT_GATED_BALLS,
+        DRIVE_TO_CORNER,
+        CORNER_TO_SHOOT,
+        SHOOT_CORNER_BALLS,
+        LOOP_CORNER,
+        CHECK_IF_DONE,
+        PARK,
         DONE
     }
+
     private AutoState autoState = AutoState.PRELOAD_AIM_AND_SPINUP;
     private boolean startedOnce = false;
-    private boolean NOT_AT_GATE = true;
-    private int gates = 0;
-
-    // ===================== PATHS =====================
-    private PathChain firstScoringPath, middleLineIntake, gateIntakePath, gateToScoring;
+    private double cornerCount = 0;
 
     private void buildPaths() {
-        firstScoringPath = follower.pathBuilder()
+        collectAndReturnPathLine = follower.pathBuilder()
+                .addPath(
+                        new BezierCurve(
+                                new Pose(87, 9),
+                                new Pose(88.5, 38),
+                                new Pose(128, 35.5)
+                        )
+                )
+                .setLinearHeadingInterpolation(Math.toRadians(90), Math.toRadians(0))
                 .addPath(
                         new BezierLine(
-                                new Pose(124.9, 121.3),
-                                new Pose(114, 112)
+                                new Pose(128, 35.5),
+                                new Pose(94, 15)
                         )
                 )
-                .setLinearHeadingInterpolation(Math.toRadians(216.25), Math.toRadians(250))
+                .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(70))
+                .build();
+
+        park = follower.pathBuilder()
                 .addPath(
                         new BezierLine(
-                                new Pose(114, 112),
-                                new Pose(90, 90)
+                                new Pose(94, 15),
+                                new Pose(100, 20)
                         )
                 )
-                .setLinearHeadingInterpolation(Math.toRadians(250), Math.toRadians(285))
+                .setLinearHeadingInterpolation(Math.toRadians(70), Math.toRadians(0))
                 .build();
 
-        middleLineIntake = follower.pathBuilder()
+        collectCorner = follower.pathBuilder()
                 .addPath(
-                        new BezierCurve(
-                                new Pose(90, 90),
-                                new Pose(77.3, 64),
-                                new Pose(122, 60)
+                        new BezierLine(
+                                new Pose(94, 15),
+                                new Pose(132, 9.3)
                         )
                 )
-                .setLinearHeadingInterpolation(Math.toRadians(285), Math.toRadians(0))
+                .setLinearHeadingInterpolation(Math.toRadians(70), Math.toRadians(0))
                 .addPath(
-                        new BezierCurve(
-                                new Pose(122, 60),
-                                new Pose(102, 72),
-                                new Pose(90, 90)
+                        new BezierLine(
+                                new Pose(132, 9.3),
+                                new Pose(124, 9.3)
                         )
                 )
-                .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(315))
+                .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(0))
+                .addPath(
+                        new BezierLine(
+                                new Pose(124, 9.3),
+                                new Pose(132, 9.3)
+                        )
+                )
+                .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(0))
                 .build();
 
-        gateIntakePath = follower.pathBuilder()
+        cornerToScoring = follower.pathBuilder()
                 .addPath(
-                        new BezierCurve(
-                                new Pose(90, 90),
-                                new Pose(98, 70),
-                                new Pose(130.3, 58.7)
+                        new BezierLine(
+                                new Pose(132, 9.3),
+                                new Pose(94, 15)
                         )
                 )
-                .setLinearHeadingInterpolation(Math.toRadians(315), 0.540)
-                .build();
-
-        gateToScoring = follower.pathBuilder()
-                .addPath(
-                        new BezierCurve(
-                                new Pose(131, 58),
-                                new Pose(98, 70),
-                                new Pose(90, 90)
-                        )
-                )
-                .setLinearHeadingInterpolation(0.540, Math.toRadians(315))
+                .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(70))
                 .build();
     }
 
@@ -201,7 +205,7 @@ public class RedClose3Plus6GateAuto extends CommandOpMode {
                 0.8
         ));
 
-        shooter.setTargetRPM(motorRPM + 200);
+        shooter.setTargetRPM(motorRPM);
         hood.aimScoring(hoodPos);
     }
 
@@ -222,8 +226,6 @@ public class RedClose3Plus6GateAuto extends CommandOpMode {
         hood = new HoodSubsystem(hardwareMap);
         kickers = new Kickers(hardwareMap);
 
-        pivot = new IntakePivot(hardwareMap);
-
         czd = new ColourZoneDetection(hardwareMap,
                 "z1CSa", "z2CSa", "z3CSa",
                 "z1CSb", "z2CSb", "z3CSb");
@@ -232,15 +234,15 @@ public class RedClose3Plus6GateAuto extends CommandOpMode {
         follower.setStartingPose(startPose);
         buildPaths();
 
-        pathTimer = new ElapsedTime();
         EndCode = new ElapsedTime();
+        startTimer = new ElapsedTime();
 
         drive = new MecanumDrivebase(hardwareMap, true, true, follower);
 
         register(shooter, kickers, hood, turret);
         schedule(new BulkCacheCommand(hardwareMap));
 
-        telemetry.addLine("RedClose3Plus6GateAuto initialized");
+        telemetry.addLine("RedFar3Plus3Auto initialized");
         telemetry.addData("Turret homed", turret.isHomed());
         telemetry.update();
     }
@@ -249,43 +251,41 @@ public class RedClose3Plus6GateAuto extends CommandOpMode {
     public void run() {
         follower.update();
 
-        if (!startedOnce) {
-            pathTimer.reset();
-            EndCode.reset();
-            startedOnce = true;
-            turret.setEnabled(true);
-            kickers.resetZoneOne();
-            kickers.resetZoneTwo();
-            kickers.resetZoneThree();
-            setAutoState(AutoState.START_FOLLOWING);
+        if (startTimer.seconds() > 15) {
+            if (!startedOnce) {
+                startedOnce = true;
+                EndCode.reset();
+                turret.setEnabled(true);
+                kickers.resetZoneOne();
+                kickers.resetZoneTwo();
+                kickers.resetZoneThree();
+                setAutoState(AutoState.PRELOAD_AIM_AND_SPINUP);
+            }
         }
 
-        if (EndCode.seconds() > 28) {
-            setAutoState(AutoState.DONE);
+
+        // TODO: Fix
+        if (EndCode.seconds() > 29) {
+            setAutoState(AutoState.PARK);
         }
 
         updateTurretAim();
         updateHoodAndShooter();
 
         switch (autoState) {
-            case START_FOLLOWING:
-                follower.setMaxPower(1);
-                follower.followPath(firstScoringPath, false);
-                setAutoState(AutoState.PRELOAD_AIM_AND_SPINUP);
-                break;
-
             case PRELOAD_AIM_AND_SPINUP:
-                if (pathTimer.seconds() > 1 && shooter.isAtTargetThreshold()) {
+                intake.stop();
+                if (shooter.isAtTargetThreshold() && startTimer.seconds() > 18) {
                     runShootCommand();
                     setAutoState(AutoState.PRELOAD_SHOOTING);
                 }
                 break;
 
             case PRELOAD_SHOOTING:
+                follower.setMaxPower(0.8);
                 intake.stop();
-                if (shootSequenceFinished && !follower.isBusy()) {
-                    follower.setMaxPower(1);
-                    follower.followPath(middleLineIntake, false);
+                if (shootSequenceFinished) {
+                    follower.followPath(collectAndReturnPathLine, false);
                     intake.intake(INTAKE_POWER);
                     setAutoState(AutoState.DRIVE_COLLECT_AND_RETURN);
                 }
@@ -295,6 +295,9 @@ public class RedClose3Plus6GateAuto extends CommandOpMode {
                 intake.intake(INTAKE_POWER);
                 if (!follower.isBusy()) {
                     intake.stop();
+                    kickers.resetZoneOne();
+                    kickers.resetZoneTwo();
+                    kickers.resetZoneThree();
                     setAutoState(AutoState.SECOND_AIM_AND_SPINUP);
                 }
                 break;
@@ -310,53 +313,66 @@ public class RedClose3Plus6GateAuto extends CommandOpMode {
 
             case SECOND_SHOOTING:
                 intake.stop();
-                NOT_AT_GATE = true;
-                if (shootSequenceFinished && gates < 2) {
-                    setAutoState(AutoState.DRIVE_TO_GATE);
-                } else if (shootSequenceFinished && gates > 2) {
+                if (shootSequenceFinished) {
+                    setAutoState(AutoState.PARK);
+                }
+                break;
+
+            case DRIVE_TO_CORNER:
+                intake.intake(INTAKE_POWER);
+                follower.followPath(collectCorner, false);
+                setAutoState(AutoState.CORNER_TO_SHOOT);
+                break;
+
+            case CORNER_TO_SHOOT:
+                if (!follower.isBusy() && shooter.isAtTargetThreshold()) {
+                    intake.stop();
+                    follower.followPath(cornerToScoring, false);
+                    setAutoState(AutoState.SHOOT_CORNER_BALLS);
+                }
+                break;
+
+            case SHOOT_CORNER_BALLS:
+                if (!follower.isBusy()) {
+                    runShootCommand();
+                    cornerCount++;
+                    setAutoState(AutoState.LOOP_CORNER);
+                }
+                break;
+
+            case LOOP_CORNER:
+                if (cornerCount >= 2) {
+                    if (!follower.isBusy()) {
+                        setAutoState(AutoState.CHECK_IF_DONE);
+                    }
+                } else {
+                    if (shootSequenceFinished) {
+                        setAutoState(AutoState.DRIVE_TO_CORNER);
+                    }
+                }
+                break;
+
+            case CHECK_IF_DONE:
+                if (shootSequenceFinished) {
+                    setAutoState(AutoState.PARK);
+                }
+                break;
+
+            case PARK:
+                if (!follower.isBusy()) {
+                    follower.followPath(park, false);
                     setAutoState(AutoState.DONE);
                 }
                 break;
 
-            case DRIVE_TO_GATE:
-                follower.followPath(gateIntakePath, false);
-                setAutoState(AutoState.GATE);
-                break;
-
-            case GATE:
-                intake.intake(INTAKE_POWER);
-                if (!follower.isBusy()) {
-                    if (NOT_AT_GATE) {
-                        pathTimer.reset();
-                        NOT_AT_GATE = false;
-                    }
-                    if (pathTimer.seconds() > 0.5) {
-                        setAutoState(AutoState.GATE_TO_SHOOTING);
-                    }
-                }
-                break;
-
-            case GATE_TO_SHOOTING:
-                intake.intake(-1);
-                gates++;
-                follower.followPath(gateToScoring, false);
-                setAutoState(AutoState.SHOOT_GATED_BALLS);
-                break;
-
-            case SHOOT_GATED_BALLS:
-                intake.stop();
-                if (!follower.isBusy() && shooter.isAtTargetThreshold()) {
-                    runShootCommand();
-                    setAutoState(AutoState.SECOND_SHOOTING);
-                }
-                break;
-
             case DONE:
-                intake.stop();
-                shooter.setTargetRPM(0);
-                turret.persistState();
-                MecanumDrivebase.storeAutoPose(follower.getPose());
-                follower.breakFollowing();
+                if (!follower.isBusy() || EndCode.seconds() >= 15) {
+                    intake.stop();
+                    shooter.setTargetRPM(0);
+                    turret.persistState();
+                    MecanumDrivebase.storeAutoPose(follower.getPose());
+                    follower.breakFollowing();
+                }
                 break;
         }
 
@@ -377,6 +393,7 @@ public class RedClose3Plus6GateAuto extends CommandOpMode {
         telemetry.addData("Turret Measured Deg", turret.getLastTurretHomeFrameDegMeasured());
         telemetry.addData("Shooter RPM", shooter.getShooterVelocity());
         telemetry.addData("Shooter Target RPM", shooter.getTargetRPM());
+        telemetry.addData("Times Cornered", cornerCount);
         telemetry.update();
     }
 

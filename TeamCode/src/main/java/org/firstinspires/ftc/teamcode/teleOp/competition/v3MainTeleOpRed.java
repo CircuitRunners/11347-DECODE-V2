@@ -47,7 +47,7 @@ public class v3MainTeleOpRed extends CommandOpMode {
     private ShotOrderPlanner.Cipher cipher = ShotOrderPlanner.Cipher.PPG;
     private boolean isRed = true;
     private boolean firstRun = true;
-    private final Pose TARGET_GOAL_POSE = new Pose(146, 134);
+    private final Pose TARGET_GOAL_POSE = new Pose(146, 134); //Pose(150, 126);
     private final static double SCORE_ANGLE = Math.toRadians(-30);
     private final static double HOOD_MAX_ANGLE = Math.toRadians(67);
     private final static double HOOD_MIN_ANGLE = Math.toRadians(0);
@@ -69,7 +69,6 @@ public class v3MainTeleOpRed extends CommandOpMode {
         shooter.setTargetRPM(0);
 
         turret = new MotorTurretTracker(hardwareMap, isRed);
-        turret.zeroAtStartupIfOnLimit();
         turret.setEnabled(false);
 
         intake = new IntakeSubsystem(hardwareMap, telemetry);
@@ -94,6 +93,9 @@ public class v3MainTeleOpRed extends CommandOpMode {
                 .whenPressed(new InstantCommand(()-> {
                     drive.setPose(new Pose(drive.getPose().getX(), drive.getPose().getY(), Math.toRadians(0.0)));
                 }));
+
+        driver.getGamepadButton(GamepadKeys.Button.X)
+                        .whenPressed(new InstantCommand(()-> drive.setPose(new Pose(72, 72, Math.toRadians(0.0)))));
 
         driver.getGamepadButton(GamepadKeys.Button.LEFT_BUMPER)
                 .whenPressed(new AutoSortAndExecute(
@@ -127,7 +129,7 @@ public class v3MainTeleOpRed extends CommandOpMode {
                 new PerpetualCommand(
                         new CalculateHoodPoseAndVelocity(
                                 drive, shooter, hood, TARGET_GOAL_POSE,
-                                0.5, 20.0,
+                                0.5, 31,
                                 SCORE_ANGLE, HOOD_MIN_ANGLE, HOOD_MAX_ANGLE
                         )),
                 new PerpetualCommand(

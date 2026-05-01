@@ -52,11 +52,11 @@ class TurretAutoAim(
 
         if (y < 60) {
             if (isRed) {
-                gx += 2.0
-                gy += 12.0
+                gx += 6.0
+                gy += 0.0
             } else {
-                gx += 2.0
-                gy += 10.0
+                gx += 6.0
+                gy += 0.0
             }
         } else if (y > 108) {
             if (isRed) {

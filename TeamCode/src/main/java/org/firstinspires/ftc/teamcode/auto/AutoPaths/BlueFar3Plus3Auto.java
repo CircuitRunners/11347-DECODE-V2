@@ -8,6 +8,7 @@ import com.pedropathing.geometry.BezierLine;
 import com.pedropathing.geometry.Pose;
 import com.pedropathing.paths.PathChain;
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
+import com.qualcomm.robotcore.util.ElapsedTime;
 import com.qualcomm.robotcore.util.Range;
 
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
@@ -52,6 +53,8 @@ public class BlueFar3Plus3Auto extends CommandOpMode {
     private ShotOrderPlanner.Cipher cipher = ShotOrderPlanner.Cipher.PPG;
     private AutoSortAndExecute shootCommand = null;
     private boolean shootSequenceFinished = false;
+    private ElapsedTime pathTimer;
+    private ElapsedTime EndCode;
 
     // ===================== SHOOT SOLVER CONFIG =====================
     public static double PASS_THROUGH_RADIUS_IN = 0.5;
@@ -179,6 +182,8 @@ public class BlueFar3Plus3Auto extends CommandOpMode {
         follower.setStartingPose(startPose);
         buildPaths();
 
+        EndCode = new ElapsedTime();
+
         drive = new MecanumDrivebase(hardwareMap, false, true, follower);
 
         register(shooter, kickers, hood, turret);
@@ -195,11 +200,17 @@ public class BlueFar3Plus3Auto extends CommandOpMode {
 
         if (!startedOnce) {
             startedOnce = true;
+            EndCode.reset();
             turret.setEnabled(true);
             kickers.resetZoneOne();
             kickers.resetZoneTwo();
             kickers.resetZoneThree();
             setAutoState(AutoState.PRELOAD_AIM_AND_SPINUP);
+        }
+
+        // TODO: Fix
+        if (EndCode.seconds() > 15) {
+            setAutoState(AutoState.DONE);
         }
 
         updateTurretAim();

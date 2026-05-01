@@ -42,7 +42,7 @@ public class v3MainTeleOpBlue extends CommandOpMode {
     private IntakePivot pivot;
     // TRANSFER STUFF
     public static double upTime = 0.04; //0.04
-    public static double resetTime = 0.1; //0.01
+    public static double resetTime = 0.01; //0.01
 
     // ========== SOFTWARE ==========
     private ColourZoneDetection czd;
@@ -51,9 +51,10 @@ public class v3MainTeleOpBlue extends CommandOpMode {
     private boolean isRed = false;
     private boolean firstRun = true;
     private final Pose TARGET_GOAL_POSE = new Pose(-6, 134);
-    private final static double SCORE_ANGLE = Math.toRadians(-30);
-    private final static double HOOD_MAX_ANGLE = Math.toRadians(67);
-    private final static double HOOD_MIN_ANGLE = Math.toRadians(0);
+    public static double SCORE_ANGLE = Math.toRadians(-30);
+    public static double HOOD_MAX_ANGLE = Math.toRadians(67);
+    public static double HOOD_MIN_ANGLE = Math.toRadians(0);
+    public static double scoreHight = 29;
     private GamepadEx driver;
 
     // ============ Loop Time Stuff ============
@@ -72,7 +73,6 @@ public class v3MainTeleOpBlue extends CommandOpMode {
         shooter.setTargetRPM(0);
 
         turret = new MotorTurretTracker(hardwareMap, isRed);
-        turret.zeroAtStartupIfOnLimit();
         turret.setEnabled(false);
 
         intake = new IntakeSubsystem(hardwareMap, telemetry);
@@ -136,7 +136,7 @@ public class v3MainTeleOpBlue extends CommandOpMode {
                 new PerpetualCommand(
                         new CalculateHoodPoseAndVelocity(
                                 drive, shooter, hood, TARGET_GOAL_POSE,
-                                0.5, 20.0,
+                                0.5, scoreHight,
                                 SCORE_ANGLE, HOOD_MIN_ANGLE, HOOD_MAX_ANGLE
                         )),
                 new PerpetualCommand(

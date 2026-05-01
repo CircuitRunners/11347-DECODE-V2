@@ -56,7 +56,7 @@ class CalculateHoodPoseAndVelocity(
         val wheelRPM = (flywheelSpeed * 60.0) / (Math.PI * (4.85 / 4.0))
         val motorRPM = wheelRPM * gearRatio
 
-        val hoodPos = (maxHoodTicks - Range.scale(hoodAngle, minHoodAngle, maxHoodAngle, 0.0, 0.8)) // lower min value?
+        val hoodPos = (maxHoodTicks - Range.scale(hoodAngle, minHoodAngle, maxHoodAngle, 0.0, 0.9)) // lower min value?
 
         shooter.targetRPM = motorRPM
         hood.aimScoring(hoodPos)
