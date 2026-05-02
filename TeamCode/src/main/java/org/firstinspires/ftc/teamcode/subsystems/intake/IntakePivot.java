@@ -11,7 +11,7 @@ public class IntakePivot extends SubsystemBase {
     public static double pivotTuning = 0.25;
     public static double PIVOT_MAX = 0.35;
     public static double ZERO_POSE = 0.25;
-    public static double PIVOT_INTAKE = 0.29;
+    public static double PIVOT_INTAKE = 0.28;
 
     public IntakePivot(HardwareMap hardwareMap) {
         intakePivot = hardwareMap.get(Servo.class, "intakeServo");

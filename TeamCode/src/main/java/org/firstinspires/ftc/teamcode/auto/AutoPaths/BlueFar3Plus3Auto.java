@@ -27,7 +27,7 @@ import org.firstinspires.ftc.teamcode.subsystems.transfer.ColourZoneDetection;
 import org.firstinspires.ftc.teamcode.subsystems.transfer.Kickers;
 
 @Config
-@Autonomous(name = "Blue Side Auto Far 3+3", group = "Blue Auto", preselectTeleOp = "v3MainTeleOpBlue")
+@Autonomous(name = "Blue Side Auto Far FULL", group = "Blue Auto", preselectTeleOp = "v3MainTeleOpBlue")
 public class BlueFar3Plus3Auto extends CommandOpMode {
 
     // ===================== ALLIANCE / FIELD =====================
@@ -45,7 +45,7 @@ public class BlueFar3Plus3Auto extends CommandOpMode {
     private MecanumDrivebase drive;
 
     // ===================== PATHS =====================
-    private PathChain collectAndReturnPath;
+    private PathChain collectAndReturnPath, collectCorner, cornerToScoring, park;
 
     // ========== SOFTWARE ==========
     private ColourZoneDetection czd;
@@ -58,7 +58,7 @@ public class BlueFar3Plus3Auto extends CommandOpMode {
 
     // ===================== SHOOT SOLVER CONFIG =====================
     public static double PASS_THROUGH_RADIUS_IN = 0.5;
-    public static double SCORE_HEIGHT_IN = 20.0;
+    public static double SCORE_HEIGHT_IN = 31;
     public static double SCORE_ANGLE_RAD = Math.toRadians(-30.0);
     public static double HOOD_MAX_ANGLE_RAD = Math.toRadians(67.0);
     public static double HOOD_MIN_ANGLE_RAD = Math.toRadians(0.0);
@@ -74,10 +74,18 @@ public class BlueFar3Plus3Auto extends CommandOpMode {
         DRIVE_COLLECT_AND_RETURN,
         SECOND_AIM_AND_SPINUP,
         SECOND_SHOOTING,
+        DRIVE_TO_CORNER,
+        CORNER_TO_SHOOT,
+        SHOOT_CORNER_BALLS,
+        LOOP_CORNER,
+        CHECK_IF_DONE,
+        PARK,
         DONE
     }
+
     private AutoState autoState = AutoState.PRELOAD_AIM_AND_SPINUP;
     private boolean startedOnce = false;
+    private double cornerCount = 0;
 
     private void buildPaths() {
         collectAndReturnPath = follower.pathBuilder()
@@ -85,13 +93,57 @@ public class BlueFar3Plus3Auto extends CommandOpMode {
                         new BezierCurve(
                                 new Pose(57, 9),
                                 new Pose(55.5, 38),
-                                new Pose(16, 35.5)
+                                new Pose(16, 33)
                         )
                 )
                 .setLinearHeadingInterpolation(Math.toRadians(90), Math.toRadians(180))
                 .addPath(
                         new BezierLine(
-                                new Pose(16, 35.5),
+                                new Pose(16, 33),
+                                new Pose(50, 15)
+                        )
+                )
+                .setLinearHeadingInterpolation(Math.toRadians(180), Math.toRadians(110))
+                .build();
+
+        park = follower.pathBuilder()
+                .addPath(
+                        new BezierLine(
+                                new Pose(50, 15),
+                                new Pose(30, 10)
+                        )
+                )
+                .setLinearHeadingInterpolation(Math.toRadians(110), Math.toRadians(180))
+                .build();
+
+        collectCorner = follower.pathBuilder()
+                .addPath(
+                        new BezierLine(
+                                new Pose(50, 15),
+                                new Pose(12, 9.3)
+                        )
+                )
+                .setLinearHeadingInterpolation(Math.toRadians(110), Math.toRadians(180))
+                .addPath(
+                        new BezierLine(
+                                new Pose(12, 9.3),
+                                new Pose(16, 9.3)
+                        )
+                )
+                .setLinearHeadingInterpolation(Math.toRadians(180), Math.toRadians(180))
+                .addPath(
+                        new BezierLine(
+                                new Pose(16, 9.3),
+                                new Pose(12, 9.7)
+                        )
+                )
+                .setLinearHeadingInterpolation(Math.toRadians(180), Math.toRadians(180))
+                .build();
+
+        cornerToScoring = follower.pathBuilder()
+                .addPath(
+                        new BezierLine(
+                                new Pose(12, 9.7),
                                 new Pose(50, 15)
                         )
                 )
@@ -209,7 +261,7 @@ public class BlueFar3Plus3Auto extends CommandOpMode {
         }
 
         // TODO: Fix
-        if (EndCode.seconds() > 15) {
+        if (EndCode.seconds() > 29) {
             setAutoState(AutoState.DONE);
         }
 
@@ -226,12 +278,11 @@ public class BlueFar3Plus3Auto extends CommandOpMode {
                 break;
 
             case PRELOAD_SHOOTING:
-                follower.setMaxPower(0.8);
                 intake.stop();
                 if (shootSequenceFinished) {
                     follower.followPath(collectAndReturnPath, false);
                     intake.intake(INTAKE_POWER);
-                    setAutoState(AutoState.DRIVE_COLLECT_AND_RETURN);
+                    setAutoState(AutoState.PARK);
                 }
                 break;
 
@@ -258,16 +309,65 @@ public class BlueFar3Plus3Auto extends CommandOpMode {
             case SECOND_SHOOTING:
                 intake.stop();
                 if (shootSequenceFinished) {
+                    setAutoState(AutoState.DRIVE_TO_CORNER);
+                }
+                break;
+
+            case DRIVE_TO_CORNER:
+                intake.intake(INTAKE_POWER);
+                follower.followPath(collectCorner, false);
+                setAutoState(AutoState.CORNER_TO_SHOOT);
+                break;
+
+            case CORNER_TO_SHOOT:
+                if (!follower.isBusy() && shooter.isAtTargetThreshold() || follower.isRobotStuck()) {
+                    intake.stop();
+                    follower.followPath(cornerToScoring, false);
+                    setAutoState(AutoState.SHOOT_CORNER_BALLS);
+                }
+                break;
+
+            case SHOOT_CORNER_BALLS:
+                if (!follower.isBusy()) {
+                    runShootCommand();
+                    cornerCount++;
+                    setAutoState(AutoState.LOOP_CORNER);
+                }
+                break;
+
+            case LOOP_CORNER:
+                if (cornerCount >= 3) {
+                    if (!follower.isBusy()) {
+                        setAutoState(AutoState.CHECK_IF_DONE);
+                    }
+                } else {
+                    if (shootSequenceFinished) {
+                        setAutoState(AutoState.DRIVE_TO_CORNER);
+                    }
+                }
+                break;
+
+            case CHECK_IF_DONE:
+                if (shootSequenceFinished) {
+                    setAutoState(AutoState.PARK);
+                }
+                break;
+
+            case PARK:
+                if (!follower.isBusy()) {
+                    follower.followPath(park, false);
                     setAutoState(AutoState.DONE);
                 }
                 break;
 
             case DONE:
-                intake.stop();
-                shooter.setTargetRPM(0);
-                turret.persistState();
-                MecanumDrivebase.storeAutoPose(follower.getPose());
-                follower.breakFollowing();
+                if (!follower.isBusy() || EndCode.seconds() > 29.5) {
+                    intake.stop();
+                    shooter.setTargetRPM(0);
+                    turret.persistState();
+                    MecanumDrivebase.storeAutoPose(follower.getPose());
+                    follower.breakFollowing();
+                }
                 break;
         }
 
@@ -288,6 +388,7 @@ public class BlueFar3Plus3Auto extends CommandOpMode {
         telemetry.addData("Turret Measured Deg", turret.getLastTurretHomeFrameDegMeasured());
         telemetry.addData("Shooter RPM", shooter.getShooterVelocity());
         telemetry.addData("Shooter Target RPM", shooter.getTargetRPM());
+        telemetry.addData("Times Cornered", cornerCount);
         telemetry.update();
     }
 

@@ -47,10 +47,11 @@ public class v3MainTeleOpRed extends CommandOpMode {
     private ShotOrderPlanner.Cipher cipher = ShotOrderPlanner.Cipher.PPG;
     private boolean isRed = true;
     private boolean firstRun = true;
-    private final Pose TARGET_GOAL_POSE = new Pose(146, 134); //Pose(150, 126);
+    private final Pose TARGET_GOAL_POSE = new Pose(148, 126); //Pose(150, 126);
     private final static double SCORE_ANGLE = Math.toRadians(-30);
-    private final static double HOOD_MAX_ANGLE = Math.toRadians(67);
+    private final static double HOOD_MAX_ANGLE = Math.toRadians(72.0);
     private final static double HOOD_MIN_ANGLE = Math.toRadians(0);
+    public static double scoreHight = 31; //30.5
     private GamepadEx driver;
 
     // ============ Loop Time Stuff ============
@@ -123,13 +124,16 @@ public class v3MainTeleOpRed extends CommandOpMode {
                         telemetry
                 ));
 
+        driver.getGamepadButton(GamepadKeys.Button.BACK)
+                .whenPressed(new InstantCommand (()-> climb.startTiltSequence()));
+
         // ========== REGISTER ==========
         register(shooter, kickers, hood, turret);
         schedule(new BulkCacheCommand(hardwareMap),
                 new PerpetualCommand(
                         new CalculateHoodPoseAndVelocity(
                                 drive, shooter, hood, TARGET_GOAL_POSE,
-                                0.5, 31,
+                                0.5, scoreHight,
                                 SCORE_ANGLE, HOOD_MIN_ANGLE, HOOD_MAX_ANGLE
                         )),
                 new PerpetualCommand(
@@ -169,6 +173,7 @@ public class v3MainTeleOpRed extends CommandOpMode {
             turret.setEnabled(true);
             firstRun = !firstRun;
         }
+        turret.persistState();
 
         telemetry.addData("loop dt (ms)", "%.3f", loopMs);
         telemetry.addData("loop avg (ms)", "%.3f", avgLoopMs);

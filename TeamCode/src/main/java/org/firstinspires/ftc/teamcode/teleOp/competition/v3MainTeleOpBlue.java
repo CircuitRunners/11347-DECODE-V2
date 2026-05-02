@@ -54,7 +54,7 @@ public class v3MainTeleOpBlue extends CommandOpMode {
     public static double SCORE_ANGLE = Math.toRadians(-30);
     public static double HOOD_MAX_ANGLE = Math.toRadians(67);
     public static double HOOD_MIN_ANGLE = Math.toRadians(0);
-    public static double scoreHight = 29;
+    public static double scoreHight = 31;
     private GamepadEx driver;
 
     // ============ Loop Time Stuff ============
@@ -176,6 +176,7 @@ public class v3MainTeleOpBlue extends CommandOpMode {
             turret.setEnabled(true);
             firstRun = !firstRun;
         }
+        turret.persistState();
 
         telemetry.addData("loop dt (ms)", "%.3f", loopMs);
         telemetry.addData("loop avg (ms)", "%.3f", avgLoopMs);
@@ -185,6 +186,7 @@ public class v3MainTeleOpBlue extends CommandOpMode {
         telemetry.addData("Turret Last Angle (deg)", turret.getLastTargetFieldDeg());
         telemetry.addData("Turret Field Angle (deg)", turret.getLastRobotFieldHeadingDeg());
         telemetry.addData("Current Anglular Velocity", drive.getAngularVelocity());
+        telemetry.addData("Shooter RPM", shooter.getShooterVelocity());
         telemetry.addData("Cipher", cipher);
         telemetry.addData("Position", data);
         telemetry.update();

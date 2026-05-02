@@ -56,10 +56,10 @@ public class BlueClose3Plus6GateAuto extends CommandOpMode {
 
     // ===================== SHOOT SOLVER CONFIG =====================
     public static double PASS_THROUGH_RADIUS_IN = 0.5;
-    public static double SCORE_ANGLE_RAD = Math.toRadians(-30);
-    public static double HOOD_MAX_ANGLE_RAD = Math.toRadians(67);
-    public static double HOOD_MIN_ANGLE_RAD = Math.toRadians(0);
-    public static double SCORE_HEIGHT_IN = 29;
+    public static double SCORE_HEIGHT_IN = 31;
+    public static double SCORE_ANGLE_RAD = Math.toRadians(-30.0);
+    public static double HOOD_MAX_ANGLE_RAD = Math.toRadians(67.0);
+    public static double HOOD_MIN_ANGLE_RAD = Math.toRadians(0.0);
     public static double MAX_HOOD_TICKS = 0.96;
 
     // ===================== INTAKE =====================
@@ -78,15 +78,17 @@ public class BlueClose3Plus6GateAuto extends CommandOpMode {
         GATE_TO_SHOOTING,
         SHOOT_GATED_BALLS,
         DRIVE_LAST,
+        CHECK_IF_DONE,
         DONE
     }
     private AutoState autoState = AutoState.PRELOAD_AIM_AND_SPINUP;
     private boolean startedOnce = false;
     private boolean NOT_AT_GATE = true;
+    private boolean driveLast = false;
     private int gates = 0;
 
     // ===================== PATHS =====================
-    private PathChain firstScoringPath, middleLineIntake, gateIntakePath, gateToScoring, lastGate;
+    private PathChain firstScoringPath, middleLineIntake, gateIntakePath, gateToScoring, lastPath;
     private void buildPaths() {
         firstScoringPath = follower.pathBuilder()
                 // Start to Shoot 1 pose
@@ -151,16 +153,30 @@ public class BlueClose3Plus6GateAuto extends CommandOpMode {
                 .setLinearHeadingInterpolation(Math.toRadians(155), Math.toRadians(225))
                 .build();
 
-        lastGate = follower.pathBuilder()
+        lastPath = follower.pathBuilder()
                 // gate to shoot pose
                 .addPath(
                         new BezierCurve(
-                                new Pose(13, 58),
-                                new Pose(46, 70),
-                                new Pose(56, 112)
+                                new Pose(54, 90),
+                                new Pose(51.5, 85),
+                                new Pose(44, 84)
                         )
                 )
-                .setLinearHeadingInterpolation(Math.toRadians(155), Math.toRadians(225))
+                .setLinearHeadingInterpolation(Math.toRadians(225), Math.toRadians(180))
+                .addPath(
+                        new BezierLine(
+                                new Pose(44, 84),
+                                new Pose(20, 84)
+                        )
+                )
+                .setLinearHeadingInterpolation(Math.toRadians(180), Math.toRadians(180))
+                .addPath(
+                        new BezierLine(
+                                new Pose(20, 84),
+                                new Pose(54, 106)
+                        )
+                )
+                .setLinearHeadingInterpolation(Math.toRadians(180), Math.toRadians(225))
                 .build();
     }
 
@@ -250,6 +266,7 @@ public class BlueClose3Plus6GateAuto extends CommandOpMode {
         buildPaths();
 
         gates = 0;
+        driveLast = false;
 
         pathTimer = new ElapsedTime();
         EndCode = new ElapsedTime();
@@ -279,7 +296,7 @@ public class BlueClose3Plus6GateAuto extends CommandOpMode {
             setAutoState(AutoState.START_FOLLOWING);
         }
 
-        if (EndCode.seconds() > 29) {
+        if (EndCode.seconds() > 29.5) {
             setAutoState(AutoState.DONE);
         }
 
@@ -294,16 +311,14 @@ public class BlueClose3Plus6GateAuto extends CommandOpMode {
                 break;
 
             case PRELOAD_AIM_AND_SPINUP:
-                if (pathTimer.seconds() > 1 && shooter.isAtTargetThreshold()) {
+                if (pathTimer.seconds() > 1.2 && shooter.isAtTargetThreshold() || !follower.isBusy() && shooter.isAtTargetThreshold()) {
                     runShootCommand();
                     setAutoState(AutoState.PRELOAD_SHOOTING);
                 }
                 break;
 
             case PRELOAD_SHOOTING:
-                intake.stop();
-                if (shootSequenceFinished && !follower.isBusy()) {
-                    follower.setMaxPower(1);
+                if (shootSequenceFinished) {
                     follower.followPath(middleLineIntake, false);
                     intake.intake(INTAKE_POWER);
                     setAutoState(AutoState.DRIVE_COLLECT_AND_RETURN);
@@ -319,8 +334,7 @@ public class BlueClose3Plus6GateAuto extends CommandOpMode {
                 break;
 
             case SECOND_AIM_AND_SPINUP:
-                follower.setMaxPower(1);
-                intake.stop();
+                intake.intake(-INTAKE_POWER);
                 if (shooter.isAtTargetThreshold()) {
                     runShootCommand();
                     setAutoState(AutoState.SECOND_SHOOTING);
@@ -331,10 +345,10 @@ public class BlueClose3Plus6GateAuto extends CommandOpMode {
                 intake.stop();
                 NOT_AT_GATE = true;
                 if (shootSequenceFinished) {
-                    if (gates < 2) {
-                        setAutoState(AutoState.DRIVE_TO_GATE);
+                    if (gates >= 2) {
+                        setAutoState(AutoState.DRIVE_LAST);
                     } else {
-                        setAutoState(AutoState.DONE);
+                        setAutoState(AutoState.DRIVE_TO_GATE);
                     }
                 }
                 break;
@@ -351,18 +365,15 @@ public class BlueClose3Plus6GateAuto extends CommandOpMode {
                         pathTimer.reset();
                         NOT_AT_GATE = false;
                     }
-                    if (gates >= 1) {
-                        setAutoState(AutoState.DRIVE_LAST);
-                    }
-                    if (pathTimer.seconds() > 1) {
+                    if (pathTimer.seconds() > 0.5) {
                         setAutoState(AutoState.GATE_TO_SHOOTING);
                     }
                 }
                 break;
 
             case DRIVE_LAST:
-                gates++;
-                follower.followPath(lastGate, false);
+                follower.followPath(lastPath, false);
+                driveLast = true;
                 setAutoState(AutoState.SHOOT_GATED_BALLS);
                 break;
 
@@ -373,18 +384,30 @@ public class BlueClose3Plus6GateAuto extends CommandOpMode {
                 break;
 
             case SHOOT_GATED_BALLS:
-                intake.intake(-INTAKE_POWER);
-                if (!follower.isBusy() && shooter.isAtTargetThreshold()) {
+                if (!follower.isBusy()) {
+                    intake.intake(-INTAKE_POWER);
                     runShootCommand();
-                    setAutoState(AutoState.SECOND_SHOOTING);
+                    setAutoState(AutoState.CHECK_IF_DONE);
+                }
+                break;
+
+            case CHECK_IF_DONE:
+                if (shootSequenceFinished) {
+                    if (!follower.isBusy()) {
+                        if (gates >= 2 && driveLast) {
+                            setAutoState(AutoState.DONE);
+                        } else {
+                            setAutoState(AutoState.SECOND_SHOOTING);
+                        }
+                    }
                 }
                 break;
 
             case DONE:
-                intake.stop();
-                shooter.setTargetRPM(0);
                 turret.persistState();
                 MecanumDrivebase.storeAutoPose(follower.getPose());
+                intake.stop();
+                shooter.setTargetRPM(0);
                 follower.breakFollowing();
                 break;
         }

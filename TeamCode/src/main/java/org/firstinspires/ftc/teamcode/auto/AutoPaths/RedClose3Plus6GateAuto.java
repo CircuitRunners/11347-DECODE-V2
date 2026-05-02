@@ -56,7 +56,7 @@ public class RedClose3Plus6GateAuto extends CommandOpMode {
 
     // ===================== SHOOT SOLVER CONFIG =====================
     public static double PASS_THROUGH_RADIUS_IN = 0.5;
-    public static double SCORE_HEIGHT_IN = 31;
+    public static double SCORE_HEIGHT_IN = 29;
     public static double SCORE_ANGLE_RAD = Math.toRadians(-30.0);
     public static double HOOD_MAX_ANGLE_RAD = Math.toRadians(67.0);
     public static double HOOD_MIN_ANGLE_RAD = Math.toRadians(0.0);
@@ -77,18 +77,21 @@ public class RedClose3Plus6GateAuto extends CommandOpMode {
         GATE,
         GATE_TO_SHOOTING,
         SHOOT_GATED_BALLS,
+        DRIVE_LAST,
+        CHECK_IF_DONE,
         DONE
     }
     private AutoState autoState = AutoState.PRELOAD_AIM_AND_SPINUP;
     private boolean startedOnce = false;
     private boolean NOT_AT_GATE = true;
+    private boolean driveLast = false;
     private int gates = 0;
 
     // ===================== PATHS =====================
-    private PathChain firstScoringPath, middleLineIntake, gateIntakePath, gateToScoring;
-
+    private PathChain firstScoringPath, middleLineIntake, gateIntakePath, gateToScoring, lastPath;
     private void buildPaths() {
         firstScoringPath = follower.pathBuilder()
+                // Start to Shoot 1 pose
                 .addPath(
                         new BezierLine(
                                 new Pose(124.9, 121.3),
@@ -106,6 +109,7 @@ public class RedClose3Plus6GateAuto extends CommandOpMode {
                 .build();
 
         middleLineIntake = follower.pathBuilder()
+                // shoot 1 to middle line
                 .addPath(
                         new BezierCurve(
                                 new Pose(90, 90),
@@ -114,6 +118,7 @@ public class RedClose3Plus6GateAuto extends CommandOpMode {
                         )
                 )
                 .setLinearHeadingInterpolation(Math.toRadians(285), Math.toRadians(0))
+                // middle line to shoot pose
                 .addPath(
                         new BezierCurve(
                                 new Pose(122, 60),
@@ -125,25 +130,53 @@ public class RedClose3Plus6GateAuto extends CommandOpMode {
                 .build();
 
         gateIntakePath = follower.pathBuilder()
+                // shoot pose to gate
                 .addPath(
                         new BezierCurve(
                                 new Pose(90, 90),
                                 new Pose(98, 70),
-                                new Pose(130.3, 58.7)
+                                new Pose(130.3, 59)
                         )
                 )
                 .setLinearHeadingInterpolation(Math.toRadians(315), 0.540)
                 .build();
 
         gateToScoring = follower.pathBuilder()
+                // gate to shoot pose
                 .addPath(
                         new BezierCurve(
-                                new Pose(131, 58),
+                                new Pose(130.3, 59),
                                 new Pose(98, 70),
                                 new Pose(90, 90)
                         )
                 )
                 .setLinearHeadingInterpolation(0.540, Math.toRadians(315))
+                .build();
+
+        lastPath = follower.pathBuilder()
+                // gate to shoot pose
+                .addPath(
+                        new BezierCurve(
+                                new Pose(90, 90),
+                                new Pose(92.5, 85),
+                                new Pose(106, 84)
+                        )
+                )
+                .setLinearHeadingInterpolation(Math.toRadians(315), Math.toRadians(0))
+                .addPath(
+                        new BezierLine(
+                                new Pose(106, 84),
+                                new Pose(124, 84)
+                        )
+                )
+                .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(0))
+                .addPath(
+                        new BezierLine(
+                                new Pose(124, 84),
+                                new Pose(90, 106)
+                        )
+                )
+                .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(315))
                 .build();
     }
 
@@ -260,7 +293,7 @@ public class RedClose3Plus6GateAuto extends CommandOpMode {
             setAutoState(AutoState.START_FOLLOWING);
         }
 
-        if (EndCode.seconds() > 28) {
+        if (EndCode.seconds() > 29.5) {
             setAutoState(AutoState.DONE);
         }
 
@@ -275,16 +308,14 @@ public class RedClose3Plus6GateAuto extends CommandOpMode {
                 break;
 
             case PRELOAD_AIM_AND_SPINUP:
-                if (pathTimer.seconds() > 1 && shooter.isAtTargetThreshold()) {
+                if (pathTimer.seconds() > 1.2 && shooter.isAtTargetThreshold() || !follower.isBusy() && shooter.isAtTargetThreshold()) {
                     runShootCommand();
                     setAutoState(AutoState.PRELOAD_SHOOTING);
                 }
                 break;
 
             case PRELOAD_SHOOTING:
-                intake.stop();
-                if (shootSequenceFinished && !follower.isBusy()) {
-                    follower.setMaxPower(1);
+                if (shootSequenceFinished) {
                     follower.followPath(middleLineIntake, false);
                     intake.intake(INTAKE_POWER);
                     setAutoState(AutoState.DRIVE_COLLECT_AND_RETURN);
@@ -300,8 +331,7 @@ public class RedClose3Plus6GateAuto extends CommandOpMode {
                 break;
 
             case SECOND_AIM_AND_SPINUP:
-                follower.setMaxPower(1);
-                intake.stop();
+                intake.intake(-INTAKE_POWER);
                 if (shooter.isAtTargetThreshold()) {
                     runShootCommand();
                     setAutoState(AutoState.SECOND_SHOOTING);
@@ -311,10 +341,12 @@ public class RedClose3Plus6GateAuto extends CommandOpMode {
             case SECOND_SHOOTING:
                 intake.stop();
                 NOT_AT_GATE = true;
-                if (shootSequenceFinished && gates < 2) {
-                    setAutoState(AutoState.DRIVE_TO_GATE);
-                } else if (shootSequenceFinished && gates > 2) {
-                    setAutoState(AutoState.DONE);
+                if (shootSequenceFinished) {
+                    if (gates >= 2) {
+                        setAutoState(AutoState.DRIVE_LAST);
+                    } else {
+                        setAutoState(AutoState.DRIVE_TO_GATE);
+                    }
                 }
                 break;
 
@@ -330,32 +362,49 @@ public class RedClose3Plus6GateAuto extends CommandOpMode {
                         pathTimer.reset();
                         NOT_AT_GATE = false;
                     }
-                    if (pathTimer.seconds() > 0.5) {
+                    if (pathTimer.seconds() > 0.75) {
                         setAutoState(AutoState.GATE_TO_SHOOTING);
                     }
                 }
                 break;
 
+            case DRIVE_LAST:
+                follower.followPath(lastPath, false);
+                driveLast = true;
+                setAutoState(AutoState.SHOOT_GATED_BALLS);
+                break;
+
             case GATE_TO_SHOOTING:
-                intake.intake(-1);
                 gates++;
                 follower.followPath(gateToScoring, false);
                 setAutoState(AutoState.SHOOT_GATED_BALLS);
                 break;
 
             case SHOOT_GATED_BALLS:
-                intake.stop();
-                if (!follower.isBusy() && shooter.isAtTargetThreshold()) {
+                if (!follower.isBusy()) {
+                    intake.intake(-INTAKE_POWER);
                     runShootCommand();
-                    setAutoState(AutoState.SECOND_SHOOTING);
+                    setAutoState(AutoState.CHECK_IF_DONE);
+                }
+                break;
+
+            case CHECK_IF_DONE:
+                if (shootSequenceFinished) {
+                    if (!follower.isBusy()) {
+                        if (gates >= 2 && driveLast) {
+                            setAutoState(AutoState.DONE);
+                        } else {
+                            setAutoState(AutoState.SECOND_SHOOTING);
+                        }
+                    }
                 }
                 break;
 
             case DONE:
-                intake.stop();
-                shooter.setTargetRPM(0);
                 turret.persistState();
                 MecanumDrivebase.storeAutoPose(follower.getPose());
+                intake.stop();
+                shooter.setTargetRPM(0);
                 follower.breakFollowing();
                 break;
         }
@@ -377,6 +426,7 @@ public class RedClose3Plus6GateAuto extends CommandOpMode {
         telemetry.addData("Turret Measured Deg", turret.getLastTurretHomeFrameDegMeasured());
         telemetry.addData("Shooter RPM", shooter.getShooterVelocity());
         telemetry.addData("Shooter Target RPM", shooter.getTargetRPM());
+        telemetry.addData("Gates", gates);
         telemetry.update();
     }
 
